@@ -9,6 +9,7 @@ import (
 func main() {
 	utils.RedisInit()
 	utils.LogInit()
+	utils.MySqlInit()
 
 	// Disable Console Color
 	// gin.DisableConsoleColor()

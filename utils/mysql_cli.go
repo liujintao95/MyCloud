@@ -8,7 +8,7 @@ import (
 
 var Conn *sql.DB
 
-func init() {
+func MySqlInit() {
 	dsn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s",
 		conf.MySqlConf["user"],
 		conf.MySqlConf["pwd"],
