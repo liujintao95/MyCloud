@@ -16,6 +16,6 @@ func main() {
 	// 使用默认中间件创建一个gin路由器
 	// logger and recovery (crash-free) 中间件
 	router := gin.Default()
-	url.Register(router)
+	server.UrlMap(router)
 	_ = router.Run()
 }

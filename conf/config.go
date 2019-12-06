@@ -1,5 +1,7 @@
 package conf
 
+const SECRET_KEY = "XHSOI*Y9dfs9cshd9"
+
 var RedisConf = map[string]string{
 	"name":    "redis",
 	"type":    "tcp",
