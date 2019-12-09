@@ -1,6 +1,8 @@
 package conf
 
 const SECRET_KEY = "XHSOI*Y9dfs9cshd9"
+const COOKIE_MAXAGE = 60*60*24*7
+const REDIS_MAXAGE = 60*60*12*1
 
 var RedisConf = map[string]string{
 	"name":    "redis",
@@ -15,5 +17,5 @@ var MySqlConf = map[string]string{
 	"type":     "tcp",
 	"address":  "127.0.0.1",
 	"port":     "3306",
-	"database": "blog",
+	"database": "my_cloud",
 }
