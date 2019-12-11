@@ -12,7 +12,7 @@ func ErrCheck(err error, msg string, risk bool) {
 	if err != nil {
 		Logging.Error(msg)
 		if risk {
-			panic("")
+			panic(msg)
 		}
 	}
 }
@@ -28,16 +28,16 @@ func CreatToken(userInfo models.UserInfo) string {
 
 	jsonData, err := json.Marshal(userInfo) // 序列化结构体
 	ErrCheck(err, "Error json marshal user information", true)
-	rc := RedisClient.Get()
+	rc := RedisPool.Get()
 	defer rc.Close()
 	_, err = rc.Do(
-		"SET", "token_"+tokenString, jsonData, "EX", conf.REDIS_MAXAGE)
+		"LPUSH", "token_"+tokenString, string(jsonData), "EX", string(conf.REDIS_MAXAGE))
 	ErrCheck(err, "Error set redis token information", true)
 	return tokenString
 }
 
 func DelToken(key string) (res bool) {
-	rc := RedisClient.Get()
+	rc := RedisPool.Get()
 	defer rc.Close()
 	_, err := rc.Do("DEL", key)
 	ErrCheck(err, "Error del redis token information", true)
