@@ -1,14 +1,12 @@
 package api
 
 import (
-	"MyCloud/cloud_server/handlers"
 	"MyCloud/cloud_server/models"
+	"MyCloud/cloud_server/repository"
 	"MyCloud/conf"
 	"MyCloud/utils"
 	"database/sql"
-	"encoding/json"
 	"fmt"
-	"github.com/garyburd/redigo/redis"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
@@ -16,6 +14,7 @@ import (
 
 var errCheck = utils.ErrCheck
 var logging = utils.Logging
+var userManager = repository.NewUserManager()
 
 // 用户登录
 func Sign(g *gin.Context) {
@@ -30,17 +29,15 @@ func Sign(g *gin.Context) {
 		return
 	}
 
-	rc := utils.RedisPool.Get()
-	defer rc.Close()
-
-	jsonData, err := redis.Bytes(rc.Do("LRANGE", user, 0, -1))
+	// 查看redis中是否有用户登录信息
+	userInfo, err := userManager.GetCache(user)
 	errCheck(err, "Sign:Error reading redis user information", false)
-	userInfo := models.UserInfo{}
-	if jsonData != nil {
-		_ = json.Unmarshal(jsonData, userInfo)
-	} else {
-		userInfo, err = handlers.GetUserInfo(user)
-		if err == sql.ErrNoRows{
+	haveCache := true
+	if userInfo == nil {
+		// 如果没有则取mysql中的数据
+		haveCache = false
+		userInfo, err = userManager.Select(user)
+		if err == sql.ErrNoRows {
 			g.JSON(http.StatusOK, gin.H{
 				"errmsg": "用户不存在",
 				"data":   nil,
@@ -50,6 +47,7 @@ func Sign(g *gin.Context) {
 		errCheck(err, "Sign:Error reading mysql user information", true)
 	}
 
+	// 判断密码是否正确
 	if bcrypt.CompareHashAndPassword([]byte(userInfo.Pwd), []byte(pwd)) != nil {
 		logging.Info(fmt.Printf("Sign:User [%s] login failed", user))
 		g.JSON(http.StatusOK, gin.H{
@@ -57,13 +55,17 @@ func Sign(g *gin.Context) {
 			"data":   nil,
 		})
 	} else {
-		if jsonData == nil {
-			jsonData, err := json.Marshal(userInfo)
-			errCheck(err, "Register:Error json marshal user information", true)
-			_, err = rc.Do("LPUSH", user, string(jsonData), "EX", string(conf.REDIS_MAXAGE))
-			errCheck(err, "Register:Error set redis user information", true)
+		if haveCache == false {
+			// 如果redis没有用户信息则添加
+			err = userManager.SetCache(user, userInfo)
+			errCheck(err, "Register:Error set redis user information", false)
 		}
-		token := utils.CreatToken(userInfo)
+		// 生成token，并存入redis
+		token, err := utils.CreatToken()
+		errCheck(err, "Register:Error creat token", true)
+		err = userManager.SetCache("token_"+token, userInfo)
+		errCheck(err, "Register:Error set token", true)
+
 		logging.Info(fmt.Printf("Sign:User [%s] login succeeded", user))
 		g.SetCookie(
 			"token", token, conf.COOKIE_MAXAGE, "/",
@@ -97,7 +99,8 @@ func Register(g *gin.Context) {
 		return
 	}
 
-	_, err := handlers.GetUserInfo(user)
+	// 判断用户名是否已存在
+	_, err := userManager.Select(user)
 	if err != sql.ErrNoRows {
 		errCheck(err, "Register:Error Query mysql UserInfo", true)
 		g.JSON(http.StatusOK, gin.H{
@@ -107,25 +110,26 @@ func Register(g *gin.Context) {
 		return
 	}
 
+	// 密码加密
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(pwd), bcrypt.DefaultCost)
 	errCheck(err, "Register:Failed to register password encryption", true)
 
+	// 保存新密码
 	userInfo := models.UserInfo{
 		User:  user,
 		Pwd:   string(hashedPassword),
 		Email: email,
 		Level: "1",
+		Phone: nil,
 	}
-	uid, err := handlers.SetNewUser(userInfo)
+	uid, err := userManager.Insert(&userInfo)
 	errCheck(err, "Register:Error Exec mysql UserInfo", true)
 	userInfo.Id = uid
-	token := utils.CreatToken(userInfo)
 
-	jsonData, err := json.Marshal(userInfo)
-	errCheck(err, "Register:Error json marshal user information", true)
-	rc := utils.RedisPool.Get()
-	defer rc.Close()
-	_, err = rc.Do("LPUSH", user, string(jsonData), "EX", string(conf.REDIS_MAXAGE))
+	// 保存token信息
+	token, err := utils.CreatToken()
+	errCheck(err, "Register:Error creat token", true)
+	err = userManager.SetCache("token_"+token, &userInfo)
 	errCheck(err, "Register:Error set redis user information", true)
 
 	g.SetCookie(
@@ -140,76 +144,12 @@ func Register(g *gin.Context) {
 // 登出
 func Logout(g *gin.Context) {
 	token, _ := g.Cookie("token")
-	if utils.DelToken(token) == false {
-		g.JSON(http.StatusInternalServerError, gin.H{
-			"errmsg": "服务器内部错误",
-			"data":   nil,
-		})
-	} else {
-		g.JSON(http.StatusOK, gin.H{
-			"errmsg": "ok",
-			"data":   nil,
-		})
-	}
-}
+	err := userManager.DelCache(token)
+	errCheck(err, "Logout:Error del token", true)
 
-// 修改密码
-func PasswordChange(g *gin.Context) {
-	token, _ := g.Cookie("token")
-	user := g.PostForm("user")
-	pwd := g.PostForm("pwd")
-	new_pwd := g.PostForm("new_pwd")
-	rnew_pwd := g.PostForm("rnew_pwd")
+	g.JSON(http.StatusOK, gin.H{
+		"errmsg": "ok",
+		"data":   nil,
+	})
 
-	if new_pwd != rnew_pwd {
-		g.JSON(http.StatusOK, gin.H{
-			"errmsg": "两次输入的新密码不相同",
-			"data":   nil,
-		})
-		return
-	}
-
-	rc := utils.RedisPool.Get()
-	defer rc.Close()
-	jsonData, err := redis.Bytes(rc.Do("LRANGE", token, 0, -1))
-	errCheck(err, "PasswordChange:Error reading redis token information", false)
-	userInfo := models.UserInfo{}
-	if jsonData != nil {
-		_ = json.Unmarshal(jsonData, userInfo)
-	} else {
-		userInfo, err = handlers.GetUserInfo(user)
-		if err == sql.ErrNoRows { // 如果没有返回结果，error的值会是sql.ErrNoRows
-			g.JSON(http.StatusOK, gin.H{
-				"errmsg": "用户名未被注册",
-				"data":   nil,
-			})
-			return
-		}
-		errCheck(err, "PasswordChange:Error Scan mysql UserInfo", true)
-	}
-	if bcrypt.CompareHashAndPassword([]byte(userInfo.Pwd), []byte(pwd)) != nil {
-		logging.Info(fmt.Printf("PasswordChange:User [%s] login failed", user))
-		g.JSON(http.StatusOK, gin.H{
-			"errmsg": "用户名或密码错误",
-			"data":   nil,
-		})
-	} else {
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(new_pwd), bcrypt.DefaultCost)
-		errCheck(err, "PasswordChange:Failed to register password encryption", true)
-		err = handlers.UpdateUserPwd(user, string(hashedPassword))
-		errCheck(err, "PasswordChange:Error Exec mysql UserInfo", true)
-
-		userInfo.Pwd = string(hashedPassword)
-		jsonData, err := json.Marshal(userInfo)
-		errCheck(err, "PasswordChange:Error json marshal user information", true)
-		_, err = rc.Do("LPUSH", user, string(jsonData), "EX", string(conf.REDIS_MAXAGE))
-		errCheck(err, "PasswordChange:Error set redis user information", true)
-		_, err = rc.Do("LPUSH", token, string(jsonData), "EX", string(conf.REDIS_MAXAGE))
-		errCheck(err, "PasswordChange:Error set redis user information", true)
-
-		g.JSON(http.StatusOK, gin.H{
-			"errmsg": "ok",
-			"data":   nil,
-		})
-	}
 }
