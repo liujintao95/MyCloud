@@ -4,13 +4,12 @@ import (
 	"MyCloud/cloud_server/models"
 	"MyCloud/conf"
 	"MyCloud/utils"
-	"database/sql"
 	"encoding/json"
 	"github.com/garyburd/redigo/redis"
 )
 
 type IUser interface {
-	Select(string) (*models.UserInfo, error)
+	SelectByUser(string) (*models.UserInfo, error)
 	Insert(*models.UserInfo) (int64, error)
 	UpdatePassword(string, string) error
 	Delete(string) error
@@ -21,14 +20,13 @@ type IUser interface {
 
 type UserManager struct {
 	table string
-	Conn  *sql.DB
 }
 
 func NewUserManager() IUser {
-	return &UserManager{table: "user_info",Conn:utils.Conn}
+	return &UserManager{table: "user_info"}
 }
 
-func (u *UserManager) Select(user string) (res *models.UserInfo, err error) {
+func (u *UserManager) SelectByUser(user string) (res *models.UserInfo, err error) {
 	obj := models.UserInfo{}
 	getSql := `
 		SELECT ui_id, ui_user, ui_pwd, ui_level,
@@ -36,7 +34,7 @@ func (u *UserManager) Select(user string) (res *models.UserInfo, err error) {
 		FROM user_info 
 		WHERE ui_user = ?
 	`
-	rows := u.Conn.QueryRow(getSql, user)
+	rows := utils.Conn.QueryRow(getSql, user)
 	err = rows.Scan(
 		&obj.Id, &obj.User, &obj.Pwd, &obj.Level,
 		&obj.Email, &obj.Phone, &obj.Recycled,
@@ -44,13 +42,13 @@ func (u *UserManager) Select(user string) (res *models.UserInfo, err error) {
 	return &obj, err
 }
 
-func (u UserManager) Insert(obj *models.UserInfo) (id int64, err error) {
+func (u *UserManager) Insert(obj *models.UserInfo) (id int64, err error) {
 	insertSql := `
 		INSERT INTO user_info(
 			ui_user, ui_pwd, ui_level, ui_email, ui_phone
 		) 
 		VALUES (?,?,?,?,?)`
-	res, err := u.Conn.Exec(insertSql, obj.User, obj.Pwd, obj.Level, obj.Email, obj.Phone)
+	res, err := utils.Conn.Exec(insertSql, obj.User, obj.Pwd, obj.Level, obj.Email, obj.Phone)
 	if err != nil{
 		return -1, err
 	}
@@ -61,7 +59,7 @@ func (u UserManager) Insert(obj *models.UserInfo) (id int64, err error) {
 	return
 }
 
-func (u UserManager) UpdatePassword(user string, pwd string) error {
+func (u *UserManager) UpdatePassword(user string, pwd string) error {
 	updateSql := `
 		UPDATE user_info 
 		SET ui_pwd=?
@@ -71,7 +69,7 @@ func (u UserManager) UpdatePassword(user string, pwd string) error {
 	return err
 }
 
-func (u UserManager) Delete(user string) (err error) {
+func (u *UserManager) Delete(user string) (err error) {
 	updateSql := `
 		UPDATE user_info 
 		SET ui_recycled = 'Y'
@@ -81,7 +79,7 @@ func (u UserManager) Delete(user string) (err error) {
 	return
 }
 
-func (u UserManager) GetCache(key string) (res *models.UserInfo, err error) {
+func (u *UserManager) GetCache(key string) (res *models.UserInfo, err error) {
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 
@@ -93,7 +91,7 @@ func (u UserManager) GetCache(key string) (res *models.UserInfo, err error) {
 	return &userInfo, err
 }
 
-func (u UserManager) SetCache(user string, obj *models.UserInfo) (err error) {
+func (u *UserManager) SetCache(user string, obj *models.UserInfo) (err error) {
 	jsonData, err := json.Marshal(obj)
 
 	rc := utils.RedisPool.Get()
@@ -103,7 +101,7 @@ func (u UserManager) SetCache(user string, obj *models.UserInfo) (err error) {
 	return
 }
 
-func (u UserManager) DelCache(key string) (err error) {
+func (u *UserManager) DelCache(key string) (err error) {
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 	_, err = rc.Do("DEL", key)

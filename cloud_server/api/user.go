@@ -25,9 +25,9 @@ func PasswordChange(g *gin.Context) {
 	}
 
 	userInfo, err := userManager.GetCache(token)
-	errCheck(err, "PasswordChange:Error reading redis token information", false)
+	errCheck(g, err, "PasswordChange:Error reading redis token information", 0)
 	if userInfo == nil{
-		userInfo, err = userManager.Select(user)
+		userInfo, err = userManager.SelectByUser(user)
 		if err == sql.ErrNoRows { // 如果没有返回结果，error的值会是sql.ErrNoRows
 			g.JSON(http.StatusOK, gin.H{
 				"errmsg": "用户名未被注册",
@@ -35,7 +35,7 @@ func PasswordChange(g *gin.Context) {
 			})
 			return
 		}
-		errCheck(err, "PasswordChange:Error Scan mysql UserInfo", true)
+		errCheck(g, err, "PasswordChange:Error Scan mysql UserInfo", http.StatusInternalServerError)
 	}
 
 	if bcrypt.CompareHashAndPassword([]byte(userInfo.Pwd), []byte(pwd)) != nil {
@@ -46,15 +46,15 @@ func PasswordChange(g *gin.Context) {
 		})
 	} else {
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(new_pwd), bcrypt.DefaultCost)
-		errCheck(err, "PasswordChange:Failed to register password encryption", true)
+		errCheck(g, err, "PasswordChange:Failed to register password encryption", http.StatusInternalServerError)
 		err = userManager.UpdatePassword(user, string(hashedPassword))
-		errCheck(err, "PasswordChange:Error Exec mysql UserInfo", true)
+		errCheck(g, err, "PasswordChange:Error Exec mysql UserInfo", http.StatusInternalServerError)
 
 		userInfo.Pwd = string(hashedPassword)
 		err = userManager.SetCache(user, userInfo)
-		errCheck(err, "PasswordChange:Error set redis user information", false)
+		errCheck(g, err, "PasswordChange:Error set redis user information", 0)
 		err = userManager.SetCache("token_"+token, userInfo)
-		errCheck(err, "PasswordChange:Error set token", true)
+		errCheck(g, err, "PasswordChange:Error set token", http.StatusInternalServerError)
 
 		g.JSON(http.StatusOK, gin.H{
 			"errmsg": "ok",

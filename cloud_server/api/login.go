@@ -31,12 +31,12 @@ func Sign(g *gin.Context) {
 
 	// 查看redis中是否有用户登录信息
 	userInfo, err := userManager.GetCache(user)
-	errCheck(err, "Sign:Error reading redis user information", false)
+	errCheck(g, err, "Sign:Error reading redis user information", 0)
 	haveCache := true
-	if userInfo == nil {
+	if userInfo.Pwd == "" {
 		// 如果没有则取mysql中的数据
 		haveCache = false
-		userInfo, err = userManager.Select(user)
+		userInfo, err = userManager.SelectByUser(user)
 		if err == sql.ErrNoRows {
 			g.JSON(http.StatusOK, gin.H{
 				"errmsg": "用户不存在",
@@ -44,7 +44,7 @@ func Sign(g *gin.Context) {
 			})
 			return
 		}
-		errCheck(err, "Sign:Error reading mysql user information", true)
+		errCheck(g, err, "Sign:Error reading mysql user information", http.StatusInternalServerError)
 	}
 
 	// 判断密码是否正确
@@ -58,13 +58,13 @@ func Sign(g *gin.Context) {
 		if haveCache == false {
 			// 如果redis没有用户信息则添加
 			err = userManager.SetCache(user, userInfo)
-			errCheck(err, "Register:Error set redis user information", false)
+			errCheck(g, err, "Register:Error set redis user information", 0)
 		}
 		// 生成token，并存入redis
 		token, err := utils.CreatToken()
-		errCheck(err, "Register:Error creat token", true)
+		errCheck(g, err, "Register:Error creat token", http.StatusInternalServerError)
 		err = userManager.SetCache("token_"+token, userInfo)
-		errCheck(err, "Register:Error set token", true)
+		errCheck(g, err, "Register:Error set token", http.StatusInternalServerError)
 
 		logging.Info(fmt.Printf("Sign:User [%s] login succeeded", user))
 		g.SetCookie(
@@ -100,9 +100,9 @@ func Register(g *gin.Context) {
 	}
 
 	// 判断用户名是否已存在
-	_, err := userManager.Select(user)
+	_, err := userManager.SelectByUser(user)
 	if err != sql.ErrNoRows {
-		errCheck(err, "Register:Error Query mysql UserInfo", true)
+		errCheck(g, err, "Register:Error Query mysql UserInfo", http.StatusInternalServerError)
 		g.JSON(http.StatusOK, gin.H{
 			"errmsg": "用户已存在",
 			"data":   nil,
@@ -112,7 +112,7 @@ func Register(g *gin.Context) {
 
 	// 密码加密
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(pwd), bcrypt.DefaultCost)
-	errCheck(err, "Register:Failed to register password encryption", true)
+	errCheck(g, err, "Register:Failed to register password encryption", http.StatusInternalServerError)
 
 	// 保存新密码
 	userInfo := models.UserInfo{
@@ -120,17 +120,16 @@ func Register(g *gin.Context) {
 		Pwd:   string(hashedPassword),
 		Email: email,
 		Level: "1",
-		Phone: nil,
 	}
 	uid, err := userManager.Insert(&userInfo)
-	errCheck(err, "Register:Error Exec mysql UserInfo", true)
+	errCheck(g, err, "Register:Error Exec mysql UserInfo", http.StatusInternalServerError)
 	userInfo.Id = uid
 
 	// 保存token信息
 	token, err := utils.CreatToken()
-	errCheck(err, "Register:Error creat token", true)
+	errCheck(g, err, "Register:Error creat token", http.StatusInternalServerError)
 	err = userManager.SetCache("token_"+token, &userInfo)
-	errCheck(err, "Register:Error set redis user information", true)
+	errCheck(g, err, "Register:Error set redis user information", http.StatusInternalServerError)
 
 	g.SetCookie(
 		"token", token, conf.COOKIE_MAXAGE, "/",
@@ -145,7 +144,7 @@ func Register(g *gin.Context) {
 func Logout(g *gin.Context) {
 	token, _ := g.Cookie("token")
 	err := userManager.DelCache(token)
-	errCheck(err, "Logout:Error del token", true)
+	errCheck(g, err, "Logout:Error del token", http.StatusInternalServerError)
 
 	g.JSON(http.StatusOK, gin.H{
 		"errmsg": "ok",

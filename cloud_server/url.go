@@ -10,4 +10,5 @@ func UrlMap(router *gin.Engine) {
 	router.POST("/register", api.Register)
 	router.GET("/logout", api.Logout)
 	router.GET("/passwordchange", api.PasswordChange)
+	router.POST("/file/upload", api.Upload)
 }
