@@ -26,7 +26,7 @@ func PasswordChange(g *gin.Context) {
 
 	userInfo, err := userManager.GetCache(token)
 	errCheck(g, err, "PasswordChange:Error reading redis token information", 0)
-	if userInfo == nil{
+	if userInfo == nil {
 		userInfo, err = userManager.SelectByUser(user)
 		if err == sql.ErrNoRows { // 如果没有返回结果，error的值会是sql.ErrNoRows
 			g.JSON(http.StatusOK, gin.H{

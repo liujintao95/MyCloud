@@ -33,8 +33,12 @@ func CreatToken() (string, error) {
 	return tokenString, err
 }
 
-func FileSha1(file *os.File) (string, error){
+func FileSha1(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
 	iSha1 := sha1.New()
-	_, err := io.Copy(iSha1, file)
+	_, err = io.Copy(iSha1, file)
 	return hex.EncodeToString(iSha1.Sum(nil)), err
 }

@@ -16,6 +16,7 @@
         <method importPath="github.com/garyburd/redigo/redis" receiver="Conn" name="Close" />
         <method importPath="database/sql" receiver="*Rows" name="Close" />
         <method importPath="os" receiver="*File" name="Close" />
+        <method importPath="mime/multipart" receiver="File" name="Close" />
       </methods>
     </inspection_tool>
   </profile>

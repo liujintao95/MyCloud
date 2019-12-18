@@ -29,14 +29,14 @@ func NewUserManager() IUser {
 func (u *UserManager) SelectByUser(user string) (res *models.UserInfo, err error) {
 	obj := models.UserInfo{}
 	getSql := `
-		SELECT ui_id, ui_user, ui_pwd, ui_level,
-		ui_email,ui_phone, ui_recycled
+		SELECT ui_id, ui_name, ui_user, ui_pwd,
+		ui_level, ui_email,ui_phone, ui_recycled
 		FROM user_info 
 		WHERE ui_user = ?
 	`
 	rows := utils.Conn.QueryRow(getSql, user)
 	err = rows.Scan(
-		&obj.Id, &obj.User, &obj.Pwd, &obj.Level,
+		&obj.Id, &obj.Name, &obj.User, &obj.Pwd, &obj.Level,
 		&obj.Email, &obj.Phone, &obj.Recycled,
 	)
 	return &obj, err
@@ -45,15 +45,17 @@ func (u *UserManager) SelectByUser(user string) (res *models.UserInfo, err error
 func (u *UserManager) Insert(obj *models.UserInfo) (id int64, err error) {
 	insertSql := `
 		INSERT INTO user_info(
-			ui_user, ui_pwd, ui_level, ui_email, ui_phone
+			ui_user, ui_name, ui_pwd,
+			ui_level, ui_email, ui_phone
 		) 
-		VALUES (?,?,?,?,?)`
-	res, err := utils.Conn.Exec(insertSql, obj.User, obj.Pwd, obj.Level, obj.Email, obj.Phone)
-	if err != nil{
+		VALUES (?,?,?,?,?,?)`
+	res, err := utils.Conn.Exec(
+		insertSql, obj.User, obj.User, obj.Pwd, obj.Level, obj.Email, obj.Phone)
+	if err != nil {
 		return -1, err
 	}
 	id, err = res.LastInsertId()
-	if err != nil{
+	if err != nil {
 		return -1, err
 	}
 	return
