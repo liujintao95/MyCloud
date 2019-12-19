@@ -9,12 +9,12 @@ import (
 )
 
 type IUser interface {
-	SelectByUser(string) (*models.UserInfo, error)
-	Insert(*models.UserInfo) (int64, error)
-	UpdatePassword(string, string) error
+	SelectByUser(string) (models.UserInfo, error)
+	Insert(models.UserInfo) (int64, error)
+	Update(models.UserInfo) error
 	Delete(string) error
-	GetCache(string) (*models.UserInfo, error)
-	SetCache(string, *models.UserInfo) error
+	GetCache(string) (models.UserInfo, error)
+	SetCache(string, models.UserInfo) error
 	DelCache(string) error
 }
 
@@ -26,23 +26,25 @@ func NewUserManager() IUser {
 	return &UserManager{table: "user_info"}
 }
 
-func (u *UserManager) SelectByUser(user string) (res *models.UserInfo, err error) {
-	obj := models.UserInfo{}
+func (u *UserManager) SelectByUser(user string) (models.UserInfo, error) {
+	userMate := new(models.UserInfo)
 	getSql := `
 		SELECT ui_id, ui_name, ui_user, ui_pwd,
 		ui_level, ui_email,ui_phone, ui_recycled
 		FROM user_info 
 		WHERE ui_user = ?
+		AND ui_recycled == 'N'
 	`
 	rows := utils.Conn.QueryRow(getSql, user)
-	err = rows.Scan(
-		&obj.Id, &obj.Name, &obj.User, &obj.Pwd, &obj.Level,
-		&obj.Email, &obj.Phone, &obj.Recycled,
+	err := rows.Scan(
+		userMate.Id, userMate.Name, userMate.User,
+		userMate.Pwd, userMate.Level, userMate.Email,
+		userMate.Phone, userMate.Recycled,
 	)
-	return &obj, err
+	return *userMate, err
 }
 
-func (u *UserManager) Insert(obj *models.UserInfo) (id int64, err error) {
+func (u *UserManager) Insert(userMate models.UserInfo) (int64, error) {
 	insertSql := `
 		INSERT INTO user_info(
 			ui_user, ui_name, ui_pwd,
@@ -50,62 +52,69 @@ func (u *UserManager) Insert(obj *models.UserInfo) (id int64, err error) {
 		) 
 		VALUES (?,?,?,?,?,?)`
 	res, err := utils.Conn.Exec(
-		insertSql, obj.User, obj.User, obj.Pwd, obj.Level, obj.Email, obj.Phone)
+		insertSql,
+		userMate.User, userMate.User, userMate.Pwd,
+		userMate.Level, userMate.Email, userMate.Phone,
+	)
 	if err != nil {
 		return -1, err
 	}
-	id, err = res.LastInsertId()
+	id, err := res.LastInsertId()
 	if err != nil {
 		return -1, err
 	}
-	return
+	return id, err
 }
 
-func (u *UserManager) UpdatePassword(user string, pwd string) error {
+func (u *UserManager) Update(userMate models.UserInfo) error {
 	updateSql := `
 		UPDATE user_info 
-		SET ui_pwd=?
+		SET ui_name=?, ui_pwd=?, ui_level=?, ui_email=?, ui_phone=?
 		WHERE ui_user=?
 	`
-	_, err := utils.Conn.Exec(updateSql, pwd, user)
+	_, err := utils.Conn.Exec(
+		updateSql,
+		userMate.Name, userMate.Pwd, userMate.Level,
+		userMate.Email, userMate.Phone, userMate.User,
+	)
 	return err
 }
 
-func (u *UserManager) Delete(user string) (err error) {
+func (u *UserManager) Delete(user string) error {
 	updateSql := `
 		UPDATE user_info 
 		SET ui_recycled = 'Y'
 		WHERE ui_user=?
 	`
-	_, err = utils.Conn.Exec(updateSql, user)
-	return
+	_, err := utils.Conn.Exec(updateSql, user)
+	return err
 }
 
-func (u *UserManager) GetCache(key string) (res *models.UserInfo, err error) {
+func (u *UserManager) GetCache(key string) (models.UserInfo, error) {
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 
 	jsonData, err := redis.Bytes(rc.Do("LRANGE", key, 0, -1))
-	userInfo := models.UserInfo{}
+	userMate := models.UserInfo{}
 	if jsonData != nil {
-		_ = json.Unmarshal(jsonData, userInfo)
+		_ = json.Unmarshal(jsonData, userMate)
 	}
-	return &userInfo, err
+	return userMate, err
 }
 
-func (u *UserManager) SetCache(user string, obj *models.UserInfo) (err error) {
-	jsonData, err := json.Marshal(obj)
+func (u *UserManager) SetCache(key string, userMate models.UserInfo) error {
+	jsonData, err := json.Marshal(userMate)
 
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 
-	_, err = rc.Do("LPUSH", user, string(jsonData), "EX", string(conf.REDIS_MAXAGE))
-	return
+	_, err = rc.Do("LPUSH", key, string(jsonData), "EX", string(conf.REDIS_MAXAGE))
+	return err
 }
 
-func (u *UserManager) DelCache(key string) (err error) {
+func (u *UserManager) DelCache(key string) error {
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
-	_, err = rc.Do("DEL", key)
-	return
+	_, err := rc.Do("DEL", key)
+	return err
 }

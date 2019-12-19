@@ -1,7 +1,7 @@
 package api
 
 import (
-	"database/sql"
+	"MyCloud/cloud_server/models"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -13,10 +13,12 @@ func PasswordChange(g *gin.Context) {
 	token, _ := g.Cookie("token")
 	user := g.PostForm("user")
 	pwd := g.PostForm("pwd")
-	new_pwd := g.PostForm("new_pwd")
-	rnew_pwd := g.PostForm("rnew_pwd")
+	newPwd := g.PostForm("new_pwd")
+	rNewPwd := g.PostForm("rnew_pwd")
+	userInter, _ := g.Get("userInfo")
+	userMate := userInter.(models.UserInfo)
 
-	if new_pwd != rnew_pwd {
+	if newPwd != rNewPwd {
 		g.JSON(http.StatusOK, gin.H{
 			"errmsg": "两次输入的新密码不相同",
 			"data":   nil,
@@ -24,36 +26,23 @@ func PasswordChange(g *gin.Context) {
 		return
 	}
 
-	userInfo, err := userManager.GetCache(token)
-	errCheck(g, err, "PasswordChange:Error reading redis token information", 0)
-	if userInfo == nil {
-		userInfo, err = userManager.SelectByUser(user)
-		if err == sql.ErrNoRows { // 如果没有返回结果，error的值会是sql.ErrNoRows
-			g.JSON(http.StatusOK, gin.H{
-				"errmsg": "用户名未被注册",
-				"data":   nil,
-			})
-			return
-		}
-		errCheck(g, err, "PasswordChange:Error Scan mysql UserInfo", http.StatusInternalServerError)
-	}
-
-	if bcrypt.CompareHashAndPassword([]byte(userInfo.Pwd), []byte(pwd)) != nil {
+	if bcrypt.CompareHashAndPassword([]byte(userMate.Pwd), []byte(pwd)) != nil {
 		logging.Info(fmt.Printf("PasswordChange:User [%s] login failed", user))
 		g.JSON(http.StatusOK, gin.H{
 			"errmsg": "用户名或密码错误",
 			"data":   nil,
 		})
 	} else {
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(new_pwd), bcrypt.DefaultCost)
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPwd), bcrypt.DefaultCost)
 		errCheck(g, err, "PasswordChange:Failed to register password encryption", http.StatusInternalServerError)
-		err = userManager.UpdatePassword(user, string(hashedPassword))
-		errCheck(g, err, "PasswordChange:Error Exec mysql UserInfo", http.StatusInternalServerError)
+		userMate.Pwd = string(hashedPassword)
 
-		userInfo.Pwd = string(hashedPassword)
-		err = userManager.SetCache(user, userInfo)
+		err = userManager.Update(userMate)
+		errCheck(g, err, "PasswordChange:Error update password", http.StatusInternalServerError)
+
+		err = userManager.SetCache(user, userMate)
 		errCheck(g, err, "PasswordChange:Error set redis user information", 0)
-		err = userManager.SetCache("token_"+token, userInfo)
+		err = userManager.SetCache("token_"+token, userMate)
 		errCheck(g, err, "PasswordChange:Error set token", http.StatusInternalServerError)
 
 		g.JSON(http.StatusOK, gin.H{
@@ -61,4 +50,26 @@ func PasswordChange(g *gin.Context) {
 			"data":   nil,
 		})
 	}
+}
+
+func UsernameChange(g *gin.Context) {
+	token, _ := g.Cookie("token")
+	user := g.PostForm("user")
+	newName := g.PostForm("name")
+	userInter, _ := g.Get("userInfo")
+	userMate := userInter.(models.UserInfo)
+
+	userMate.Name = newName
+	err := userManager.Update(userMate)
+	errCheck(g, err, "UsernameChange:Error update user name", http.StatusInternalServerError)
+
+	err = userManager.SetCache(user, userMate)
+	errCheck(g, err, "UsernameChange:Error set redis user information", 0)
+	err = userManager.SetCache("token_"+token, userMate)
+	errCheck(g, err, "UsernameChange:Error set token", http.StatusInternalServerError)
+
+	g.JSON(http.StatusOK, gin.H{
+		"errmsg": "ok",
+		"data":   nil,
+	})
 }

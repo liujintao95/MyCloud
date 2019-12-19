@@ -15,6 +15,8 @@ import (
 var errCheck = utils.ErrCheck
 var logging = utils.Logging
 var userManager = repository.NewUserManager()
+var fileManager = repository.NewFileManager()
+var userFileManager = repository.NewUserFileManager()
 
 // 用户登录
 func Sign(g *gin.Context) {
@@ -30,13 +32,13 @@ func Sign(g *gin.Context) {
 	}
 
 	// 查看redis中是否有用户登录信息
-	userInfo, err := userManager.GetCache(user)
+	userMate, err := userManager.GetCache(user)
 	errCheck(g, err, "Sign:Error reading redis user information", 0)
 	haveCache := true
-	if userInfo.Pwd == "" {
+	if userMate.Pwd == "" {
 		// 如果没有则取mysql中的数据
 		haveCache = false
-		userInfo, err = userManager.SelectByUser(user)
+		userMate, err = userManager.SelectByUser(user)
 		if err == sql.ErrNoRows {
 			g.JSON(http.StatusOK, gin.H{
 				"errmsg": "用户不存在",
@@ -48,7 +50,7 @@ func Sign(g *gin.Context) {
 	}
 
 	// 判断密码是否正确
-	if bcrypt.CompareHashAndPassword([]byte(userInfo.Pwd), []byte(pwd)) != nil {
+	if bcrypt.CompareHashAndPassword([]byte(userMate.Pwd), []byte(pwd)) != nil {
 		logging.Info(fmt.Printf("Sign:User [%s] login failed", user))
 		g.JSON(http.StatusOK, gin.H{
 			"errmsg": "用户名或密码错误",
@@ -57,13 +59,13 @@ func Sign(g *gin.Context) {
 	} else {
 		if haveCache == false {
 			// 如果redis没有用户信息则添加
-			err = userManager.SetCache(user, userInfo)
+			err = userManager.SetCache(user, userMate)
 			errCheck(g, err, "Register:Error set redis user information", 0)
 		}
 		// 生成token，并存入redis
 		token, err := utils.CreatToken()
 		errCheck(g, err, "Register:Error creat token", http.StatusInternalServerError)
-		err = userManager.SetCache("token_"+token, userInfo)
+		err = userManager.SetCache("token_"+token, userMate)
 		errCheck(g, err, "Register:Error set token", http.StatusInternalServerError)
 
 		logging.Info(fmt.Printf("Sign:User [%s] login succeeded", user))
@@ -115,20 +117,20 @@ func Register(g *gin.Context) {
 	errCheck(g, err, "Register:Failed to register password encryption", http.StatusInternalServerError)
 
 	// 保存新密码
-	userInfo := models.UserInfo{
+	userMate := models.UserInfo{
 		User:  user,
 		Pwd:   string(hashedPassword),
 		Email: email,
 		Level: "1",
 	}
-	uid, err := userManager.Insert(&userInfo)
+	uid, err := userManager.Insert(userMate)
 	errCheck(g, err, "Register:Error Exec mysql UserInfo", http.StatusInternalServerError)
-	userInfo.Id = uid
+	userMate.Id = uid
 
 	// 保存token信息
 	token, err := utils.CreatToken()
 	errCheck(g, err, "Register:Error creat token", http.StatusInternalServerError)
-	err = userManager.SetCache("token_"+token, &userInfo)
+	err = userManager.SetCache("token_"+token, userMate)
 	errCheck(g, err, "Register:Error set redis user information", http.StatusInternalServerError)
 
 	g.SetCookie(
