@@ -1,7 +1,6 @@
 package api
 
 import (
-	"MyCloud/cloud_server/meta"
 	"MyCloud/cloud_server/models"
 	"MyCloud/utils"
 	"database/sql"
@@ -20,15 +19,16 @@ func Upload(g *gin.Context) {
 	userMate := userInter.(models.UserInfo)
 
 	fileMate := models.FileInfo{
-		Name:     header.Filename,
-		Size:     header.Size,
-		Path:     "./file/" + header.Filename,
+		Name: header.Filename,
+		Size: header.Size,
+		Path: "./file/" + header.Filename,
+		IsPublic: 0,
 	}
 	userFileMate := models.UserFileMap{
-		UserId:   userMate.Id,
+		UserInfo: userMate,
 		FileName: header.Filename,
 	}
-	if remark != ""{
+	if remark != "" {
 		fileMate.Remark = sql.NullString{String: remark, Valid: true}
 		userFileMate.Remark = sql.NullString{String: remark, Valid: true}
 	}
@@ -36,15 +36,22 @@ func Upload(g *gin.Context) {
 	err = g.SaveUploadedFile(header, fileMate.Path)
 	errCheck(g, err, "Upload:Failed to save file", http.StatusInternalServerError)
 
-	// 生成哈希
-	fileMate.Hash, err = utils.FileSha1(fileMate.Path)
+	fileMate.Hash, err = utils.FileSha1ToPath(fileMate.Path)
 	errCheck(g, err, "Upload:Failed to create sha1", http.StatusInternalServerError)
 
-	_, err = fileManager.Insert(fileMate)
-	errCheck(g, err, "Upload:Failed to insert mysql", http.StatusInternalServerError)
-
+	fileMate.Id, err = fileManager.Insert(fileMate)
+	errCheck(g, err, "Upload:Failed to insert file information for mysql", http.StatusInternalServerError)
 	err = fileManager.SetCache(fileMate.Hash, fileMate)
-	errCheck(g, err, "Upload:Failed to set redis", http.StatusInternalServerError)
+	errCheck(g, err, "Upload:Failed to set file information for redis", http.StatusInternalServerError)
+
+	userFileMate.FileInfo = fileMate
+	_, err = userFileManager.Insert(userFileMate)
+	errCheck(g, err, "Upload:Failed to insert user_file_map for mysql", http.StatusInternalServerError)
+	err = userFileManager.SetCache(
+		userFileMate.UserInfo.User+userFileMate.FileInfo.Hash,
+		userFileMate,
+	)
+	errCheck(g, err, "Upload:Failed to set user_file_map for redis", http.StatusInternalServerError)
 
 	g.JSON(http.StatusOK, gin.H{
 		"errmsg": "ok",
@@ -55,33 +62,76 @@ func Upload(g *gin.Context) {
 // 下载文件
 func Download(g *gin.Context) {
 	fileHash := g.Query("fileHash")
+	userInter, _ := g.Get("userInfo")
+	userMate := userInter.(models.UserInfo)
 
-	// 权限验证
-
-	fileMate, err := fileManager.GetCache(fileHash)
-	errCheck(g, err, "Download:Failed to read redis", 0)
+	userFileMate, err := userFileManager.GetCache(userMate.User + fileHash)
+	errCheck(g, err, "Download:Failed to read user_file_map from redis", 0)
 	haveCache := true
-	if fileMate.Path == "" {
-		// 如果没有则取mysql中的数据
+	if userFileMate.FileName == "" {
 		haveCache = false
-		fileMate, err = fileManager.SelectByHash(fileHash)
+		userFileMate, err = userFileManager.SelectByUserFile(userMate.User, fileHash)
 		if err == sql.ErrNoRows {
 			g.JSON(http.StatusNotFound, gin.H{
-				"errmsg": "Download:Failed to read mysql",
+				"errmsg": "Download:No files were found",
 				"data":   nil,
 			})
 			return
 		}
-		errCheck(g, err, "Download:Failed to read mysql", http.StatusInternalServerError)
+		errCheck(g, err, "Download:Failed to read user_file_map from mysql", http.StatusInternalServerError)
 	}
 
-	// 判断是否有文件
-	_, err = os.Stat(fileMate.Path)
+	_, err = os.Stat(userFileMate.FileInfo.Path)
 	errCheck(g, err, "Download:Failed to find file", http.StatusNotFound)
 
 	if haveCache == false {
-		err = fileManager.SetCache(fileMate.Hash, fileMate)
+		err = userFileManager.SetCache(userMate.User+fileHash, userFileMate)
 		errCheck(g, err, "Download:Failed to set redis", http.StatusInternalServerError)
+	}
+
+	g.Writer.Header().Add(
+		"Content-Disposition", fmt.Sprintf(
+			"attachment; filename=%s", userFileMate.FileInfo.Path,
+		),
+	)
+	g.Writer.Header().Add("Content-Type", "application/octet-stream")
+	g.File(userFileMate.FileInfo.Path)
+}
+
+// 下载公共文件
+func PublicDownload(g *gin.Context) {
+	fileHash := g.Query("fileHash")
+
+	fileMate, err := fileManager.GetCache(fileHash)
+	errCheck(g, err, "PublicDownload:Failed to read redis", 0)
+	haveCache := true
+	if fileMate.Path == "" {
+		haveCache = false
+		fileMate, err = fileManager.SelectByHash(fileHash)
+		if err == sql.ErrNoRows {
+			g.JSON(http.StatusNotFound, gin.H{
+				"errmsg": "PublicDownload:No files were found",
+				"data":   nil,
+			})
+			return
+		}
+		errCheck(g, err, "PublicDownload:Failed to read mysql", http.StatusInternalServerError)
+	}
+
+	if fileMate.IsPublic != 1 {
+		g.JSON(http.StatusUnauthorized, gin.H{
+			"errmsg": "PublicDownload:No files were found",
+			"data":   nil,
+		})
+		return
+	}
+
+	_, err = os.Stat(fileMate.Path)
+	errCheck(g, err, "PublicDownload:Failed to find file", http.StatusNotFound)
+
+	if haveCache == false {
+		err = fileManager.SetCache(fileMate.Hash, fileMate)
+		errCheck(g, err, "PublicDownload:Failed to set redis", http.StatusInternalServerError)
 	}
 
 	g.Writer.Header().Add(
@@ -93,20 +143,28 @@ func Download(g *gin.Context) {
 func UpdateFileName(g *gin.Context) {
 	fileHash := g.PostForm("fileHash")
 	newFileName := g.PostForm("newFileName")
+	userInter, _ := g.Get("userInfo")
+	userMate := userInter.(models.UserInfo)
 
-	// 权限验证
+	userFileMate, err := userFileManager.GetCache(userMate.User + fileHash)
+	errCheck(g, err, "UpdateFileName:Failed to read user_file_map from redis", 0)
+	if userFileMate.FileName == "" {
+		userFileMate, err = userFileManager.SelectByUserFile(userMate.User, fileHash)
+		if err == sql.ErrNoRows {
+			g.JSON(http.StatusNotFound, gin.H{
+				"errmsg": "UpdateFileName:No files were found",
+				"data":   nil,
+			})
+			return
+		}
+		errCheck(g, err, "UpdateFileName:Failed to read user_file_map from mysql", http.StatusInternalServerError)
+	}
 
-	// 获取文件信息
-	fileMate, err := fileManager.SelectByHash(fileHash)
-	errCheck(g, err, "UpdateFileName:Failed to read mysql", http.StatusInternalServerError)
+	userFileMate.FileName = newFileName
 
-	// 修改文件信息
-	fileMate.Name = newFileName
-
-	// 保存文件信息
-	err = fileManager.Update(fileMate)
+	err = userFileManager.Update(userFileMate)
 	errCheck(g, err, "UpdateFileName:Failed to save mysql", http.StatusInternalServerError)
-	err = fileManager.SetCache(fileMate.Hash, fileMate)
+	err = userFileManager.SetCache(userMate.User+fileHash, userFileMate)
 	errCheck(g, err, "UpdateFileName:Failed to save redis", http.StatusInternalServerError)
 
 	g.JSON(http.StatusOK, gin.H{
@@ -117,13 +175,37 @@ func UpdateFileName(g *gin.Context) {
 
 func Delete(g *gin.Context) {
 	fileHash := g.PostForm("fileHash")
+	userInter, _ := g.Get("userInfo")
+	userMate := userInter.(models.UserInfo)
 
-	fileMate := meta.GetFileMeta(fileHash)
+	userFileMate, err := userFileManager.GetCache(userMate.User + fileHash)
+	errCheck(g, err, "Delete:Failed to read user_file_map from redis", 0)
+	if userFileMate.FileName == "" {
+		userFileMate, err = userFileManager.SelectByUserFile(userMate.User, fileHash)
+		if err == sql.ErrNoRows {
+			g.JSON(http.StatusNotFound, gin.H{
+				"errmsg": "Delete:No files were found",
+				"data":   nil,
+			})
+			return
+		}
+		errCheck(g, err, "Delete:Failed to read user_file_map from mysql", http.StatusInternalServerError)
+	}
 
-	meta.RemoveFileMeta(fileHash)
+	err = userFileManager.Delete(userFileMate)
+	errCheck(g, err, "Delete:Failed to remove user_file_map from mysql", http.StatusInternalServerError)
+	err = userFileManager.DelCache(userMate.User + fileHash)
+	errCheck(g, err, "Delete:Failed to remove user_file_map from redis", http.StatusInternalServerError)
 
-	err := os.Remove(fileMate.Location)
-	errCheck(g, err, "Delete:Failed to remove file", 0)
+	_, err = userFileManager.SelectByFile(fileHash)
+	if err == sql.ErrNoRows {
+		err = fileManager.Delete(fileHash)
+		errCheck(g, err, "Delete:Failed to remove file_info from mysql", 0)
+		err = fileManager.DelCache(fileHash)
+		errCheck(g, err, "Delete:Failed to remove file_info from redis", 0)
+		err = os.Remove(userFileMate.FileInfo.Path)
+		errCheck(g, err, "Delete:Failed to remove file", 0)
+	}
 
 	g.JSON(http.StatusOK, gin.H{
 		"errmsg": "ok",

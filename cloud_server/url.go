@@ -10,11 +10,12 @@ func UrlMap(router *gin.Engine) {
 	router.POST("/register", api.Register)
 	router.GET("/logout", api.Logout)
 
-	authorized := router.Group("/auth", loginRequired)
+	authorized := router.Group("/auth", LoginRequired)
 	authorized.GET("/user/change/password", api.PasswordChange)
 	authorized.GET("/user/change/username", api.UsernameChange)
 	authorized.POST("/file/upload", api.Upload)
 	authorized.GET("/file/download", api.Download)
+	authorized.GET("/file/public_download", api.PublicDownload)
 	authorized.GET("/file/update", api.UpdateFileName)
 	authorized.GET("/file/delete", api.Delete)
 }

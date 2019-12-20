@@ -19,15 +19,15 @@ type FileInfo struct {
 	Hash     string         `db:"fi_hash"`
 	Size     int64          `db:"fi_size"`
 	Path     string         `db:"fi_path"`
-	State    sql.NullInt64  `db:"fi_remark"`
-	Remark   sql.NullString `db:"fi_state"`
+	IsPublic int64          `db:"fi_is_public"`
+	Remark   sql.NullString `db:"fi_remark"`
 	Recycled string         `db:"fi_recycled"`
 }
 
 type UserFileMap struct {
-	Id       int64          `db:"fi_id"`
-	UserId   int64          `db:"uf_ui_id"`
-	FileId   int64          `db:"uf_fi_id"`
+	Id       int64          `db:"uf_id"`
+	UserInfo UserInfo       `db:"uf_ui_id"`
+	FileInfo FileInfo       `db:"uf_fi_id"`
 	FileName string         `db:"uf_file_name"`
 	Star     int64          `db:"uf_star"`
 	IsPublic int64          `db:"uf_is_public"`

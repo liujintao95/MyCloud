@@ -30,7 +30,7 @@ func (f *FileManager) SelectByHash(hash string) (models.FileInfo, error) {
 	fileMate := new(models.FileInfo)
 	getSql := `
 		SELECT fi_id, fi_name, fi_hash, fi_size,
-		fi_path, fi_remark, fi_state, fi_recycled
+		fi_path, fi_remark, fi_is_public, fi_recycled
 		FROM file_info 
 		WHERE fi_hash = ?
 		AND fi_recycled == 'N'
@@ -39,7 +39,7 @@ func (f *FileManager) SelectByHash(hash string) (models.FileInfo, error) {
 	err := rows.Scan(
 		fileMate.Id, fileMate.Name, fileMate.Hash,
 		fileMate.Size, fileMate.Path, fileMate.Remark,
-		fileMate.State, fileMate.Recycled,
+		fileMate.IsPublic, fileMate.Recycled,
 	)
 	return *fileMate, err
 }
@@ -69,13 +69,13 @@ func (f *FileManager) Insert(fileMate models.FileInfo) (int64, error) {
 func (f *FileManager) Update(fileMate models.FileInfo) error {
 	updateSql := `
 		UPDATE file_info 
-		SET fi_name=?, fi_size=?, fi_path=?, fi_remark=?, fi_state=?
+		SET fi_name=?, fi_size=?, fi_path=?, fi_remark=?, fi_is_public=?
 		WHERE fi_hash=?
 	`
 	_, err := utils.Conn.Exec(
 		updateSql,
 		fileMate.Name, fileMate.Size, fileMate.Path,
-		fileMate.Remark, fileMate.State, fileMate.Hash,
+		fileMate.Remark, fileMate.IsPublic, fileMate.Hash,
 	)
 	return err
 }
@@ -90,11 +90,11 @@ func (f *FileManager) Delete(hash string) error {
 	return err
 }
 
-func (f *FileManager) GetCache(hash string) (models.FileInfo, error) {
+func (f *FileManager) GetCache(key string) (models.FileInfo, error) {
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 
-	jsonData, err := redis.Bytes(rc.Do("LRANGE", hash, 0, -1))
+	jsonData, err := redis.Bytes(rc.Do("LRANGE", key, 0, -1))
 	fileMate := models.FileInfo{}
 	if jsonData != nil {
 		_ = json.Unmarshal(jsonData, fileMate)
@@ -102,13 +102,13 @@ func (f *FileManager) GetCache(hash string) (models.FileInfo, error) {
 	return fileMate, err
 }
 
-func (f *FileManager) SetCache(hash string, obj models.FileInfo) error {
-	jsonData, err := json.Marshal(obj)
+func (f *FileManager) SetCache(key string, fileMate models.FileInfo) error {
+	jsonData, err := json.Marshal(fileMate)
 
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 
-	_, err = rc.Do("LPUSH", hash, string(jsonData), "EX", string(conf.REDIS_MAXAGE))
+	_, err = rc.Do("LPUSH", key, string(jsonData), "EX", string(conf.REDIS_MAXAGE))
 	return err
 }
 

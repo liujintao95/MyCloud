@@ -12,7 +12,7 @@ import (
 
 var errCheck = utils.ErrCheck
 
-func loginRequired(g *gin.Context) {
+func LoginRequired(g *gin.Context) {
 	token, _ := g.Cookie("token")
 
 	rc := utils.RedisPool.Get()
