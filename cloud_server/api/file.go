@@ -26,6 +26,7 @@ func Upload(g *gin.Context) {
 	}
 	userFileMate := models.UserFileMap{
 		UserInfo: userMate,
+		FileInfo: fileMate,
 		FileName: header.Filename,
 	}
 	if remark != "" {
@@ -33,24 +34,35 @@ func Upload(g *gin.Context) {
 		userFileMate.Remark = sql.NullString{String: remark, Valid: true}
 	}
 
-	err = g.SaveUploadedFile(header, fileMate.Path)
-	errCheck(g, err, "Upload:Failed to save file", http.StatusInternalServerError)
-
-	fileMate.Hash, err = utils.FileSha1ToPath(fileMate.Path)
+	hash, err := utils.FileSha1(header)
 	errCheck(g, err, "Upload:Failed to create sha1", http.StatusInternalServerError)
+	fileMate.Hash = hash
 
-	fileMate.Id, err = fileManager.Insert(fileMate)
-	errCheck(g, err, "Upload:Failed to insert file information for mysql", http.StatusInternalServerError)
-	err = fileManager.SetCache(fileMate.Hash, fileMate)
-	errCheck(g, err, "Upload:Failed to set file information for redis", http.StatusInternalServerError)
+	// 判断用户是否已经关联该文件
+	_, err = userFileManager.SelectByUserFile(userMate.User, hash)
+	if err != sql.ErrNoRows {
+		g.JSON(http.StatusOK, gin.H{
+			"errmsg": "Upload:The file already exist",
+			"data":   nil,
+		})
+		return
+	}
 
-	userFileMate.FileInfo = fileMate
+	// 判断文件是否已存在
+	_, err = fileManager.SelectByHash(hash)
+	if err == sql.ErrNoRows {
+		err = g.SaveUploadedFile(header, fileMate.Path)
+		errCheck(g, err, "Upload:Failed to save file", http.StatusInternalServerError)
+
+		fileMate.Id, err = fileManager.Insert(fileMate)
+		errCheck(g, err, "Upload:Failed to insert file information for mysql", http.StatusInternalServerError)
+		err = fileManager.SetCache(fileMate.Hash, fileMate)
+		errCheck(g, err, "Upload:Failed to set file information for redis", http.StatusInternalServerError)
+	}
+
 	_, err = userFileManager.Insert(userFileMate)
 	errCheck(g, err, "Upload:Failed to insert user_file_map for mysql", http.StatusInternalServerError)
-	err = userFileManager.SetCache(
-		userFileMate.UserInfo.User+userFileMate.FileInfo.Hash,
-		userFileMate,
-	)
+	err = userFileManager.SetCache(userMate.User + hash, userFileMate, )
 	errCheck(g, err, "Upload:Failed to set user_file_map for redis", http.StatusInternalServerError)
 
 	g.JSON(http.StatusOK, gin.H{

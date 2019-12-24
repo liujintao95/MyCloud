@@ -6,7 +6,8 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"io"
-	"os"
+	"mime/multipart"
+	_ "os"
 	"time"
 )
 
@@ -33,22 +34,12 @@ func CreatToken() (string, error) {
 	return tokenString, err
 }
 
-func FileSha1ToPath(path string) (string, error) {
-	file, err := os.Open(path)
+func FileSha1(file *multipart.FileHeader) (string, error) {
+	src, err := file.Open()
 	if err != nil {
 		return "", err
 	}
 	iSha1 := sha1.New()
-	_, err = io.Copy(iSha1, file)
-	return hex.EncodeToString(iSha1.Sum(nil)), err
-}
-
-func FileSha1ToHandle(path *File) (string, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	iSha1 := sha1.New()
-	_, err = io.Copy(iSha1, file)
+	_, err = io.Copy(iSha1, src)
 	return hex.EncodeToString(iSha1.Sum(nil)), err
 }

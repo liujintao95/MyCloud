@@ -187,6 +187,9 @@ func (u UserFileManager) SetCache(key string, userFileMate models.UserFileMap) e
 	return err
 }
 
-func (u UserFileManager) DelCache(string) error {
-	panic("implement me")
+func (u UserFileManager) DelCache(key string) error {
+	rc := utils.RedisPool.Get()
+	defer rc.Close()
+	_, err := rc.Do("DEL", key)
+	return err
 }
