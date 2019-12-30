@@ -37,13 +37,8 @@ func PasswordChange(g *gin.Context) {
 		errCheck(g, err, "PasswordChange:Failed to register password encryption", http.StatusInternalServerError)
 		userMate.Pwd = string(hashedPassword)
 
-		err = userManager.Update(userMate)
+		err = userManager.Update("token_"+token, userMate)
 		errCheck(g, err, "PasswordChange:Error update password", http.StatusInternalServerError)
-
-		err = userManager.SetCache(user, userMate)
-		errCheck(g, err, "PasswordChange:Error set redis user information", 0)
-		err = userManager.SetCache("token_"+token, userMate)
-		errCheck(g, err, "PasswordChange:Error set token", http.StatusInternalServerError)
 
 		g.JSON(http.StatusOK, gin.H{
 			"errmsg": "ok",
@@ -54,19 +49,13 @@ func PasswordChange(g *gin.Context) {
 
 func UsernameChange(g *gin.Context) {
 	token, _ := g.Cookie("token")
-	user := g.PostForm("user")
 	newName := g.PostForm("name")
 	userInter, _ := g.Get("userInfo")
 	userMate := userInter.(models.UserInfo)
 
 	userMate.Name = newName
-	err := userManager.Update(userMate)
+	err := userManager.Update("token_"+token, userMate)
 	errCheck(g, err, "UsernameChange:Error update user name", http.StatusInternalServerError)
-
-	err = userManager.SetCache(user, userMate)
-	errCheck(g, err, "UsernameChange:Error set redis user information", 0)
-	err = userManager.SetCache("token_"+token, userMate)
-	errCheck(g, err, "UsernameChange:Error set token", http.StatusInternalServerError)
 
 	g.JSON(http.StatusOK, gin.H{
 		"errmsg": "ok",

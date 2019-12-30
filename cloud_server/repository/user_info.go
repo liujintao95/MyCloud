@@ -9,10 +9,16 @@ import (
 )
 
 type IUser interface {
-	SelectByUser(string) (models.UserInfo, error)
-	Insert(models.UserInfo) (int64, error)
-	Update(models.UserInfo) error
-	Delete(string) error
+	GetByUser(string) (models.UserInfo, error)
+	Set(string, models.UserInfo) (int64, error)
+	Update(string, models.UserInfo) error
+	DeleteByUser(string) error
+
+	GetSqlByUser(string) (models.UserInfo, error)
+	SetSql(models.UserInfo) (int64, error)
+	UpdateSql(models.UserInfo) error
+	DelSqlByUser(string) error
+
 	GetCache(string) (models.UserInfo, error)
 	SetCache(string, models.UserInfo) error
 	DelCache(string) error
@@ -26,7 +32,45 @@ func NewUserManager() IUser {
 	return &UserManager{table: "user_info"}
 }
 
-func (u *UserManager) SelectByUser(user string) (models.UserInfo, error) {
+func (u *UserManager) GetByUser(user string) (models.UserInfo, error) {
+	userMate, err := u.GetCache(user)
+	if err != nil{
+		return userMate, err
+	}
+	if userMate.Pwd == "" {
+		userMate, err = u.GetSqlByUser(user)
+		if err == nil {
+			err = u.SetCache(user, userMate)
+		}
+	}
+	return userMate, err
+}
+
+func (u *UserManager) Set(key string, userMate models.UserInfo) (int64, error) {
+	uid, err := u.SetSql(userMate)
+	if err != nil{
+		return -1, err
+	}
+	userMate.Id = uid
+	err = u.SetCache(key, userMate)
+	return uid, err
+}
+
+func (u *UserManager) Update(key string, userMate models.UserInfo) error {
+	err := u.UpdateSql(userMate)
+	if err != nil{
+		return err
+	}
+	_ = u.SetCache(userMate.User, userMate)
+	err = u.SetCache(key, userMate)
+	return err
+}
+
+func (u *UserManager) DeleteByUser(string) error {
+	panic("implement me")
+}
+
+func (u *UserManager) GetSqlByUser(user string) (models.UserInfo, error) {
 	userMate := new(models.UserInfo)
 	getSql := `
 		SELECT ui_id, ui_name, ui_user, ui_pwd,
@@ -44,7 +88,7 @@ func (u *UserManager) SelectByUser(user string) (models.UserInfo, error) {
 	return *userMate, err
 }
 
-func (u *UserManager) Insert(userMate models.UserInfo) (int64, error) {
+func (u *UserManager) SetSql(userMate models.UserInfo) (int64, error) {
 	insertSql := `
 		INSERT INTO user_info(
 			ui_user, ui_name, ui_pwd,
@@ -66,7 +110,7 @@ func (u *UserManager) Insert(userMate models.UserInfo) (int64, error) {
 	return id, err
 }
 
-func (u *UserManager) Update(userMate models.UserInfo) error {
+func (u *UserManager) UpdateSql(userMate models.UserInfo) error {
 	updateSql := `
 		UPDATE user_info 
 		SET ui_name=?, ui_pwd=?, ui_level=?, ui_email=?, ui_phone=?
@@ -80,7 +124,7 @@ func (u *UserManager) Update(userMate models.UserInfo) error {
 	return err
 }
 
-func (u *UserManager) Delete(user string) error {
+func (u *UserManager) DelSqlByUser(user string) error {
 	updateSql := `
 		UPDATE user_info 
 		SET ui_recycled = 'Y'

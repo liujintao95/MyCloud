@@ -9,10 +9,16 @@ import (
 )
 
 type IFile interface {
-	SelectByHash(string) (models.FileInfo, error)
-	Insert(models.FileInfo) (int64, error)
-	Update(models.FileInfo) error
-	Delete(string) error
+	GetByHash(string) (models.FileInfo, error)
+	Set(string, models.FileInfo) (int64, error)
+	Update(string, models.FileInfo) error
+	DeleteByHash(string) error
+
+	GetSqlByHash(string) (models.FileInfo, error)
+	SetSql(models.FileInfo) (int64, error)
+	UpdateSql(models.FileInfo) error
+	DelSqlByHash(string) error
+
 	GetCache(string) (models.FileInfo, error)
 	SetCache(string, models.FileInfo) error
 	DelCache(string) error
@@ -26,7 +32,41 @@ func NewFileManager() IFile {
 	return &FileManager{table: "file_info"}
 }
 
-func (f *FileManager) SelectByHash(hash string) (models.FileInfo, error) {
+func (f *FileManager) GetByHash(hash string) (models.FileInfo, error) {
+	fileMate, err := f.GetCache(hash)
+	if err == nil && fileMate.Path == "" {
+		fileMate, err = f.GetSqlByHash(hash)
+		if err == nil {
+			err = f.SetCache(fileMate.Hash, fileMate)
+		}
+	}
+	return fileMate, err
+}
+
+func (f *FileManager) Set(key string, fileMate models.FileInfo) (int64, error) {
+	id, err := f.SetSql(fileMate)
+	fileMate.Id = id
+	if err != nil {
+		return -1, err
+	}
+	err = f.SetCache(key, fileMate)
+	return id, err
+}
+
+func (f *FileManager) Update(key string, fileMate models.FileInfo) error {
+	panic("implement me")
+}
+
+func (f *FileManager) DeleteByHash(hash string) error {
+	err := f.DelSqlByHash(hash)
+	if err != nil {
+		return err
+	}
+	err = f.DelCache(hash)
+	return err
+}
+
+func (f *FileManager) GetSqlByHash(hash string) (models.FileInfo, error) {
 	fileMate := new(models.FileInfo)
 	getSql := `
 		SELECT fi_id, fi_name, fi_hash, fi_size,
@@ -44,7 +84,7 @@ func (f *FileManager) SelectByHash(hash string) (models.FileInfo, error) {
 	return *fileMate, err
 }
 
-func (f *FileManager) Insert(fileMate models.FileInfo) (int64, error) {
+func (f *FileManager) SetSql(fileMate models.FileInfo) (int64, error) {
 	insertSql := `
 		INSERT INTO file_info(
 			fi_name, fi_hash, fi_size,
@@ -66,7 +106,7 @@ func (f *FileManager) Insert(fileMate models.FileInfo) (int64, error) {
 	return id, err
 }
 
-func (f *FileManager) Update(fileMate models.FileInfo) error {
+func (f *FileManager) UpdateSql(fileMate models.FileInfo) error {
 	updateSql := `
 		UPDATE file_info 
 		SET fi_name=?, fi_size=?, fi_path=?, fi_remark=?, fi_is_public=?
@@ -80,7 +120,7 @@ func (f *FileManager) Update(fileMate models.FileInfo) error {
 	return err
 }
 
-func (f *FileManager) Delete(hash string) error {
+func (f *FileManager) DelSqlByHash(hash string) error {
 	updateSql := `
 		UPDATE file_info 
 		SET fi_recycled = 'Y'
