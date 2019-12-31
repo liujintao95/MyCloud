@@ -17,6 +17,8 @@ var logging = utils.Logging
 var userManager = repository.NewUserManager()
 var fileManager = repository.NewFileManager()
 var userFileManager = repository.NewUserFileManager()
+var fileBlockManager = repository.NewFileBlockManager()
+var blockManager = repository.NewBlockManager()
 
 // 用户登录
 func Sign(g *gin.Context) {

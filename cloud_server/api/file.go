@@ -2,7 +2,6 @@ package api
 
 import (
 	"MyCloud/cloud_server/models"
-	"MyCloud/utils"
 	"database/sql"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -13,15 +12,17 @@ import (
 // 上传文件
 func Upload(g *gin.Context) {
 	remark := g.PostForm("remark")
+	hash := g.PostForm("hash")
 	header, err := g.FormFile("file")
 	errCheck(g, err, "Upload:Failed to get request", http.StatusBadRequest)
 	userInter, _ := g.Get("userInfo")
 	userMate := userInter.(models.UserInfo)
 
 	fileMate := models.FileInfo{
-		Name: header.Filename,
-		Size: header.Size,
-		Path: "./file/" + header.Filename,
+		Name:     header.Filename,
+		Size:     header.Size,
+		Path:     "./file/" + header.Filename,
+		Hash:     hash,
 		IsPublic: 0,
 	}
 	userFileMate := models.UserFileMap{
@@ -34,9 +35,9 @@ func Upload(g *gin.Context) {
 		userFileMate.Remark = sql.NullString{String: remark, Valid: true}
 	}
 
-	hash, err := utils.FileSha1(header)
-	errCheck(g, err, "Upload:Failed to create sha1", http.StatusInternalServerError)
-	fileMate.Hash = hash
+	//hash, err := utils.FileSha1(header)
+	//errCheck(g, err, "Upload:Failed to create sha1", http.StatusInternalServerError)
+	//fileMate.Hash = hash
 
 	// 判断用户是否已经关联该文件
 	_, err = userFileManager.GetSqlByUserFile(userMate.User, hash)
@@ -54,16 +55,16 @@ func Upload(g *gin.Context) {
 		err = g.SaveUploadedFile(header, fileMate.Path)
 		errCheck(g, err, "Upload:Failed to save file", http.StatusInternalServerError)
 
-		fileMate.Id, err = fileManager.Set(hash ,fileMate)
+		fileMate.Id, err = fileManager.Set(hash, fileMate)
 		errCheck(g, err, "Upload:Failed to set file information", http.StatusInternalServerError)
 	}
 
-	_, err = userFileManager.Set(userMate.User + hash, userFileMate)
+	_, err = userFileManager.Set(userMate.User+hash, userFileMate)
 	errCheck(g, err, "Upload:Failed to set user_file_map", http.StatusInternalServerError)
 
 	g.JSON(http.StatusOK, gin.H{
 		"errmsg": "ok",
-		"data":   fileMate.Hash,
+		"data":   nil,
 	})
 }
 

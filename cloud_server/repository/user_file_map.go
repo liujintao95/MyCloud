@@ -57,7 +57,7 @@ func (u UserFileManager) GetByUserFile(user string, fileHash string) (models.Use
 
 func (u UserFileManager) Set(key string, userFileMate models.UserFileMap) (int64, error) {
 	id, err := u.SetSql(userFileMate)
-	if err != nil{
+	if err != nil {
 		return -1, err
 	}
 	err = u.SetCache(key, userFileMate)
@@ -66,7 +66,7 @@ func (u UserFileManager) Set(key string, userFileMate models.UserFileMap) (int64
 
 func (u UserFileManager) Update(key string, userFileMate models.UserFileMap) error {
 	err := u.UpdateSql(userFileMate)
-	if err != nil{
+	if err != nil {
 		return err
 	}
 	err = u.SetCache(key, userFileMate)
@@ -75,10 +75,10 @@ func (u UserFileManager) Update(key string, userFileMate models.UserFileMap) err
 
 func (u UserFileManager) DeleteByUserFile(user string, fileHash string) error {
 	err := u.DelSqlByUserFile(user, fileHash)
-	if err != nil{
+	if err != nil {
 		return err
 	}
-	err = u.DelCache(user+fileHash)
+	err = u.DelCache(user + fileHash)
 	return err
 }
 
@@ -106,8 +106,8 @@ func (u UserFileManager) GetSqlByFile(fileHash string) ([]models.UserFileMap, er
 		AND ui_recycled == 'N'
 		AND fi_recycled == 'N'
 	`
-	rows,err := utils.Conn.Query(getSql, fileHash)
-	if err != nil{
+	rows, err := utils.Conn.Query(getSql, fileHash)
+	if err != nil {
 		return mapList, err
 	}
 

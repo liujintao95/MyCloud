@@ -19,7 +19,7 @@ type FileInfo struct {
 	Hash     string         `db:"fi_hash"`
 	Size     int64          `db:"fi_size"`
 	Path     string         `db:"fi_path"`
-	IsPublic int64          `db:"fi_is_public"`
+	IsPublic int            `db:"fi_is_public"`
 	Remark   sql.NullString `db:"fi_remark"`
 	Recycled string         `db:"fi_recycled"`
 }
@@ -29,9 +29,29 @@ type UserFileMap struct {
 	UserInfo UserInfo       `db:"uf_ui_id"`
 	FileInfo FileInfo       `db:"uf_fi_id"`
 	FileName string         `db:"uf_file_name"`
-	Star     int64          `db:"uf_star"`
-	IsPublic int64          `db:"uf_is_public"`
+	Star     int            `db:"uf_star"`
+	IsPublic int            `db:"uf_is_public"`
 	State    sql.NullInt64  `db:"uf_remark"`
 	Remark   sql.NullString `db:"uf_state"`
 	Recycled string         `db:"uf_recycled"`
+}
+
+type FileBlockInfo struct {
+	Id         int64    `db:"fbi_id"`
+	Hash       string   `db:"fbi_hash"`
+	UserInfo   UserInfo `db:"fbi_user_id"`
+	UploadID   string   `db:"fbi_upload_id"`
+	FileSize   int      `db:"fbi_file_size"`
+	BlockSize  int      `db:"fbi_block_size"`
+	BlockCount int      `db:"fbi_block_count"`
+	Recycled   string   `db:"fbi_recycled"`
+}
+
+type BlockInfo struct {
+	Id            int64         `db:"bi_id"`
+	FileBlockInfo FileBlockInfo `db:"bi_upload_id"`
+	Index         int           `db:"bi_index"`
+	Size          int           `db:"bi_size"`
+	State         int           `db:"bi_state"`
+	Recycled      string        `db:"bi_recycled"`
 }

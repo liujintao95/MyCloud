@@ -34,7 +34,7 @@ func NewUserManager() IUser {
 
 func (u *UserManager) GetByUser(user string) (models.UserInfo, error) {
 	userMate, err := u.GetCache(user)
-	if err != nil{
+	if err != nil {
 		return userMate, err
 	}
 	if userMate.Pwd == "" {
@@ -48,7 +48,7 @@ func (u *UserManager) GetByUser(user string) (models.UserInfo, error) {
 
 func (u *UserManager) Set(key string, userMate models.UserInfo) (int64, error) {
 	uid, err := u.SetSql(userMate)
-	if err != nil{
+	if err != nil {
 		return -1, err
 	}
 	userMate.Id = uid
@@ -58,7 +58,7 @@ func (u *UserManager) Set(key string, userMate models.UserInfo) (int64, error) {
 
 func (u *UserManager) Update(key string, userMate models.UserInfo) error {
 	err := u.UpdateSql(userMate)
-	if err != nil{
+	if err != nil {
 		return err
 	}
 	_ = u.SetCache(userMate.User, userMate)
