@@ -35,10 +35,6 @@ func Upload(g *gin.Context) {
 		userFileMate.Remark = sql.NullString{String: remark, Valid: true}
 	}
 
-	//hash, err := utils.FileSha1(header)
-	//errCheck(g, err, "Upload:Failed to create sha1", http.StatusInternalServerError)
-	//fileMate.Hash = hash
-
 	// 判断用户是否已经关联该文件
 	_, err = userFileManager.GetSqlByUserFile(userMate.User, hash)
 	if err != sql.ErrNoRows {
@@ -50,7 +46,7 @@ func Upload(g *gin.Context) {
 	}
 
 	// 判断文件是否已存在
-	_, err = fileManager.GetSqlByHash(hash)
+	_, err = fileManager.GetByHash(hash)
 	if err == sql.ErrNoRows {
 		err = g.SaveUploadedFile(header, fileMate.Path)
 		errCheck(g, err, "Upload:Failed to save file", http.StatusInternalServerError)

@@ -4,17 +4,19 @@ import "MyCloud/cloud_server/models"
 
 type IBlock interface {
 	GetByUploadId(string) ([]models.BlockInfo, error)
-	Set(string, []models.BlockInfo) (int64, error)
+	GetByUploadIdIndex(string, string) (models.BlockInfo, error)
+	Set(string, models.BlockInfo) (int64, error)
 	Update(string, models.BlockInfo) error
 	DeleteByUploadId(string) error
 
-	GetSqlByUploadId(string) (models.BlockInfo, error)
-	SetSql([]models.BlockInfo) (int64, error)
+	GetSqlByUploadId(string) ([]models.BlockInfo, error)
+	GetSqlByUploadIdIndex(string, string) (models.BlockInfo, error)
+	SetSql(models.BlockInfo) (int64, error)
 	UpdateSql(models.BlockInfo) error
 	DelSqlByUploadId(string) error
 
 	GetCache(string) (models.BlockInfo, error)
-	SetCache(string, []models.BlockInfo) error
+	SetCache(string, models.BlockInfo) error
 	DelCache(string) error
 }
 
@@ -30,7 +32,11 @@ func (b BlockManager) GetByUploadId(string) ([]models.BlockInfo, error) {
 	panic("implement me")
 }
 
-func (b BlockManager) Set(string, []models.BlockInfo) (int64, error) {
+func (b BlockManager) GetByUploadIdIndex(string, string) (models.BlockInfo, error) {
+	panic("implement me")
+}
+
+func (b BlockManager) Set(string, models.BlockInfo) (int64, error) {
 	panic("implement me")
 }
 
@@ -42,11 +48,15 @@ func (b BlockManager) DeleteByUploadId(string) error {
 	panic("implement me")
 }
 
-func (b BlockManager) GetSqlByUploadId(string) (models.BlockInfo, error) {
+func (b BlockManager) GetSqlByUploadId(string) ([]models.BlockInfo, error) {
 	panic("implement me")
 }
 
-func (b BlockManager) SetSql([]models.BlockInfo) (int64, error) {
+func (b BlockManager) GetSqlByUploadIdIndex(string, string) (models.BlockInfo, error) {
+	panic("implement me")
+}
+
+func (b BlockManager) SetSql(models.BlockInfo) (int64, error) {
 	panic("implement me")
 }
 
@@ -62,7 +72,7 @@ func (b BlockManager) GetCache(string) (models.BlockInfo, error) {
 	panic("implement me")
 }
 
-func (b BlockManager) SetCache(string, []models.BlockInfo) error {
+func (b BlockManager) SetCache(string, models.BlockInfo) error {
 	panic("implement me")
 }
 

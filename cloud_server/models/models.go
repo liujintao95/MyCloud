@@ -39,6 +39,7 @@ type UserFileMap struct {
 type FileBlockInfo struct {
 	Id         int64    `db:"fbi_id"`
 	Hash       string   `db:"fbi_hash"`
+	FileName       string   `db:"fbi_file_name"`
 	UserInfo   UserInfo `db:"fbi_user_id"`
 	UploadID   string   `db:"fbi_upload_id"`
 	FileSize   int      `db:"fbi_file_size"`
@@ -51,6 +52,7 @@ type BlockInfo struct {
 	Id            int64         `db:"bi_id"`
 	FileBlockInfo FileBlockInfo `db:"bi_upload_id"`
 	Index         int           `db:"bi_index"`
+	Path         string           `db:"bi_path"`
 	Size          int           `db:"bi_size"`
 	State         int           `db:"bi_state"`
 	Recycled      string        `db:"bi_recycled"`
