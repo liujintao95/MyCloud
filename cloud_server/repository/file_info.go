@@ -5,12 +5,13 @@ import (
 	"MyCloud/conf"
 	"MyCloud/utils"
 	"encoding/json"
+
 	"github.com/garyburd/redigo/redis"
 )
 
 type IFile interface {
 	GetByHash(string) (models.FileInfo, error)
-	Set(string, models.FileInfo) (int64, error)
+	Set(models.FileInfo) (int64, error)
 	Update(string, models.FileInfo) error
 	DeleteByHash(string) error
 
@@ -43,13 +44,13 @@ func (f *FileManager) GetByHash(hash string) (models.FileInfo, error) {
 	return fileMate, err
 }
 
-func (f *FileManager) Set(key string, fileMate models.FileInfo) (int64, error) {
+func (f *FileManager) Set(fileMate models.FileInfo) (int64, error) {
 	id, err := f.SetSql(fileMate)
 	fileMate.Id = id
 	if err != nil {
 		return -1, err
 	}
-	err = f.SetCache(key, fileMate)
+	err = f.SetCache(fileMate.Hash, fileMate)
 	return id, err
 }
 
@@ -109,13 +110,15 @@ func (f *FileManager) SetSql(fileMate models.FileInfo) (int64, error) {
 func (f *FileManager) UpdateSql(fileMate models.FileInfo) error {
 	updateSql := `
 		UPDATE file_info 
-		SET fi_name=?, fi_size=?, fi_path=?, fi_remark=?, fi_is_public=?
+		SET fi_name=?, fi_size=?, fi_path=?,
+		fi_remark=?, fi_is_public=?, fi_recycled
 		WHERE fi_hash=?
 	`
 	_, err := utils.Conn.Exec(
 		updateSql,
 		fileMate.Name, fileMate.Size, fileMate.Path,
-		fileMate.Remark, fileMate.IsPublic, fileMate.Hash,
+		fileMate.Remark, fileMate.IsPublic,
+		fileMate.Recycled, fileMate.Hash,
 	)
 	return err
 }
@@ -137,7 +140,7 @@ func (f *FileManager) GetCache(key string) (models.FileInfo, error) {
 	jsonData, err := redis.Bytes(rc.Do("LRANGE", key, 0, -1))
 	fileMate := models.FileInfo{}
 	if jsonData != nil {
-		_ = json.Unmarshal(jsonData, fileMate)
+		_ = json.Unmarshal(jsonData, &fileMate)
 	}
 	return fileMate, err
 }

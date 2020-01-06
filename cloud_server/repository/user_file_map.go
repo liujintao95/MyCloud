@@ -5,6 +5,7 @@ import (
 	"MyCloud/conf"
 	"MyCloud/utils"
 	"encoding/json"
+
 	"github.com/garyburd/redigo/redis"
 )
 
@@ -12,8 +13,8 @@ type IUserFileMap interface {
 	GetByUser(string) ([]models.UserFileMap, error)
 	GetByFile(string) ([]models.UserFileMap, error)
 	GetByUserFile(string, string) (models.UserFileMap, error)
-	Set(string, models.UserFileMap) (int64, error)
-	Update(string, models.UserFileMap) error
+	Set(models.UserFileMap) (int64, error)
+	Update(models.UserFileMap) error
 	DeleteByUserFile(string, string) error
 
 	GetSqlByUser(string) ([]models.UserFileMap, error)
@@ -36,7 +37,7 @@ func NewUserFileManager() IUserFileMap {
 	return &UserFileManager{table: "user_file_map"}
 }
 
-func (u UserFileManager) GetByUser(string) ([]models.UserFileMap, error) {
+func (u UserFileManager) GetByUser(user string) ([]models.UserFileMap, error) {
 	panic("implement me")
 }
 
@@ -55,20 +56,22 @@ func (u UserFileManager) GetByUserFile(user string, fileHash string) (models.Use
 	return userFileMate, err
 }
 
-func (u UserFileManager) Set(key string, userFileMate models.UserFileMap) (int64, error) {
+func (u UserFileManager) Set(userFileMate models.UserFileMap) (int64, error) {
 	id, err := u.SetSql(userFileMate)
 	if err != nil {
 		return -1, err
 	}
+	key := userFileMate.UserInfo.User + userFileMate.FileInfo.Hash
 	err = u.SetCache(key, userFileMate)
 	return id, err
 }
 
-func (u UserFileManager) Update(key string, userFileMate models.UserFileMap) error {
+func (u UserFileManager) Update(userFileMate models.UserFileMap) error {
 	err := u.UpdateSql(userFileMate)
 	if err != nil {
 		return err
 	}
+	key := userFileMate.UserInfo.User + userFileMate.FileInfo.Hash
 	err = u.SetCache(key, userFileMate)
 	return err
 }
@@ -227,7 +230,7 @@ func (u UserFileManager) GetCache(key string) (models.UserFileMap, error) {
 	jsonData, err := redis.Bytes(rc.Do("LRANGE", key, 0, -1))
 	userFileMate := models.UserFileMap{}
 	if jsonData != nil {
-		_ = json.Unmarshal(jsonData, userFileMate)
+		_ = json.Unmarshal(jsonData, &userFileMate)
 	}
 	return userFileMate, err
 }

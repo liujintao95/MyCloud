@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"os"
+	"time"
 )
 
 // 上传文件
@@ -18,10 +19,12 @@ func Upload(g *gin.Context) {
 	userInter, _ := g.Get("userInfo")
 	userMate := userInter.(models.UserInfo)
 
+	uploadId := userMate.User + fmt.Sprintf("%x", time.Now().UnixNano())
+
 	fileMate := models.FileInfo{
 		Name:     header.Filename,
 		Size:     header.Size,
-		Path:     "./file/" + header.Filename,
+		Path:     "./file/" + uploadId + header.Filename,
 		Hash:     hash,
 		IsPublic: 0,
 	}
@@ -35,32 +38,57 @@ func Upload(g *gin.Context) {
 		userFileMate.Remark = sql.NullString{String: remark, Valid: true}
 	}
 
+	err = g.SaveUploadedFile(header, fileMate.Path)
+	errCheck(g, err, "Upload:Failed to save file", http.StatusInternalServerError)
+
+	fileMate.Id, err = fileManager.Set(fileMate)
+	errCheck(g, err, "Upload:Failed to set file information", http.StatusInternalServerError)
+
+	_, err = userFileManager.Set(userFileMate)
+	errCheck(g, err, "Upload:Failed to set user_file_map", http.StatusInternalServerError)
+
+	g.JSON(http.StatusOK, gin.H{
+		"errmsg": "ok",
+		"data":   nil,
+	})
+}
+
+func RapidUpload(g *gin.Context) {
+	hash := g.PostForm("hash")
+	userInter, _ := g.Get("userInfo")
+	userMate := userInter.(models.UserInfo)
+
 	// 判断用户是否已经关联该文件
-	_, err = userFileManager.GetSqlByUserFile(userMate.User, hash)
+	_, err := userFileManager.GetSqlByUserFile(userMate.User, hash)
 	if err != sql.ErrNoRows {
 		g.JSON(http.StatusOK, gin.H{
-			"errmsg": "Upload:The file already exist",
+			"errmsg": "RapidUpload:The file already exist",
 			"data":   nil,
 		})
 		return
 	}
 
 	// 判断文件是否已存在
-	_, err = fileManager.GetByHash(hash)
-	if err == sql.ErrNoRows {
-		err = g.SaveUploadedFile(header, fileMate.Path)
-		errCheck(g, err, "Upload:Failed to save file", http.StatusInternalServerError)
+	fileMate, err := fileManager.GetByHash(hash)
+	if err != sql.ErrNoRows {
+		errCheck(g, err, "RapidUpload:Failed to read file info", http.StatusInternalServerError)
+		userFileMate := models.UserFileMap{
+			UserInfo: userMate,
+			FileInfo: fileMate,
+			FileName: fileMate.Name,
+		}
+		_, err = userFileManager.Set(userFileMate)
+		errCheck(g, err, "RapidUpload:Failed to set user_file_map", http.StatusInternalServerError)
 
-		fileMate.Id, err = fileManager.Set(hash, fileMate)
-		errCheck(g, err, "Upload:Failed to set file information", http.StatusInternalServerError)
+		g.JSON(http.StatusOK, gin.H{
+			"errmsg": "OK",
+			"data":   true,
+		})
 	}
 
-	_, err = userFileManager.Set(userMate.User+hash, userFileMate)
-	errCheck(g, err, "Upload:Failed to set user_file_map", http.StatusInternalServerError)
-
 	g.JSON(http.StatusOK, gin.H{
-		"errmsg": "ok",
-		"data":   nil,
+		"errmsg": "OK",
+		"data":   false,
 	})
 }
 
@@ -141,7 +169,7 @@ func UpdateFileName(g *gin.Context) {
 
 	userFileMate.FileName = newFileName
 
-	err = userFileManager.Update(userMate.User+fileHash, userFileMate)
+	err = userFileManager.Update(userFileMate)
 	errCheck(g, err, "UpdateFileName:Failed to update file", http.StatusInternalServerError)
 
 	g.JSON(http.StatusOK, gin.H{

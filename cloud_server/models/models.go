@@ -39,12 +39,13 @@ type UserFileMap struct {
 type FileBlockInfo struct {
 	Id         int64    `db:"fbi_id"`
 	Hash       string   `db:"fbi_hash"`
-	FileName       string   `db:"fbi_file_name"`
-	UserInfo   UserInfo `db:"fbi_user_id"`
+	FileName   string   `db:"fbi_file_name"`
+	UserInfo   UserInfo `db:"fbi_ui_id"`
 	UploadID   string   `db:"fbi_upload_id"`
-	FileSize   int      `db:"fbi_file_size"`
-	BlockSize  int      `db:"fbi_block_size"`
+	FileSize   int64    `db:"fbi_file_size"`
+	BlockSize  int64    `db:"fbi_block_size"`
 	BlockCount int      `db:"fbi_block_count"`
+	State      int      `db:"fbi_state"`
 	Recycled   string   `db:"fbi_recycled"`
 }
 
@@ -52,8 +53,16 @@ type BlockInfo struct {
 	Id            int64         `db:"bi_id"`
 	FileBlockInfo FileBlockInfo `db:"bi_upload_id"`
 	Index         int           `db:"bi_index"`
-	Path         string           `db:"bi_path"`
-	Size          int           `db:"bi_size"`
+	Path          string        `db:"bi_path"`
+	Size          int64         `db:"bi_size"`
 	State         int           `db:"bi_state"`
 	Recycled      string        `db:"bi_recycled"`
+}
+
+type FileDirectory struct {
+	Id       int64    `db:"fd_id"`
+	UserInfo UserInfo `db:"fd_ui_id"`
+	FileInfo FileInfo `db:"fd_fi_id"`
+	IsDir    int      `db:"fd_is_dir"`
+	Fid      int      `db:"fd_fid"`
 }

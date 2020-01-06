@@ -2,7 +2,6 @@ package api
 
 import (
 	"MyCloud/cloud_server/models"
-	"database/sql"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"io/ioutil"
@@ -13,88 +12,49 @@ import (
 	"time"
 )
 
-func initBlockUpload(g *gin.Context) {
+func InitBlockUpload(g *gin.Context) {
 	hash := g.PostForm("hash")
 	fileName := g.PostForm("fileName")
 	sizeStr := g.PostForm("size")
 	userInter, _ := g.Get("userInfo")
 	userMate := userInter.(models.UserInfo)
 
-	fileSize, _ := strconv.Atoi(sizeStr)
+	fileSize, _ := strconv.ParseInt(sizeStr, 10, 64)
 
-	// 判断用户是否已经关联该文件
-	_, err := userFileManager.GetSqlByUserFile(userMate.User, hash)
-	if err != sql.ErrNoRows {
-		g.JSON(http.StatusOK, gin.H{
-			"errmsg": "Upload:The file already exist",
-			"data":   nil,
-		})
-		return
-	}
-
-	// 判断文件是否已存在
-	fileMate, err := fileManager.GetSqlByHash(hash)
-	if err != sql.ErrNoRows {
-		errCheck(g, err, "initBlockUpload:Failed to read file info", http.StatusInternalServerError)
-		userFileMate := models.UserFileMap{
-			UserInfo: userMate,
-			FileInfo: fileMate,
-			FileName: fileMate.Name,
-		}
-		_, err = userFileManager.Set(userMate.User+hash, userFileMate)
-		errCheck(g, err, "Upload:Failed to set user_file_map", http.StatusInternalServerError)
-
-		g.JSON(http.StatusOK, gin.H{
-			"errmsg": "ok",
-			"data":   nil,
-		})
-	}
-
-	// 判断是否重复上传
 	var resList [...]int
 
-	fileBlockMate, err := fileBlockManager.GetByUserHash(userMate.User, hash)
-	if err != sql.ErrNoRows {
-		errCheck(g, err, "initBlockUpload:Failed to read file block info", http.StatusInternalServerError)
-		blockList, err := blockManager.GetByUploadId(fileBlockMate.UploadID)
-		errCheck(g, err, "initBlockUpload:Failed to read block info", http.StatusInternalServerError)
-
-		for i, blockMate := range blockList {
-			resList[i] = blockMate.State
-		}
-	} else {
-		fileBlockMate = models.FileBlockInfo{
-			Hash:       hash,
-			FileName:       fileName,
-			UserInfo:   userMate,
-			UploadID:   userMate.User + fmt.Sprintf("%x", time.Now().UnixNano()),
-			FileSize:   fileSize,
-			BlockSize:  5 * 1024 * 1024,
-			BlockCount: int(math.Ceil(float64(fileSize) / (5 * 1024 * 1024))),
-		}
-
-		_, err = fileBlockManager.Set("fb_"+fileBlockMate.UploadID, fileBlockMate)
-		errCheck(g, err, "initBlockUpload:Failed to set file block info", http.StatusInternalServerError)
-
-		for i := 0; i < fileBlockMate.BlockCount; i++ {
-			blockMate := models.BlockInfo{
-				FileBlockInfo: fileBlockMate,
-				Index:         i,
-				Path:"./file/tmp"+fileBlockMate.UploadID+strconv.Itoa(i),
-				Size:          5 * 1024 * 1024,
-				State:         0,
-			}
-			if i + 1 == fileBlockMate.BlockCount{
-				blockMate.Size = fileSize % (5 * 1024 * 1024)
-			}
-			_, err = blockManager.Set(
-				"bl"+fileBlockMate.UploadID+strconv.Itoa(i),
-				blockMate,
-			)
-
-			resList[i] = 0
-		}
+	fileBlockMate := models.FileBlockInfo{
+		Hash:       hash,
+		FileName:   fileName,
+		UserInfo:   userMate,
+		UploadID:   userMate.User + fmt.Sprintf("%x", time.Now().UnixNano()),
+		FileSize:   fileSize,
+		BlockSize:  5 * 1024 * 1024,
+		BlockCount: int(math.Ceil(float64(fileSize) / (5 * 1024 * 1024))),
 	}
+
+	_, err := fileBlockManager.Set(fileBlockMate)
+	errCheck(g, err, "initBlockUpload:Failed to set file block info", http.StatusInternalServerError)
+
+	var blockList []models.BlockInfo
+	for i := 0; i < fileBlockMate.BlockCount; i++ {
+		blockMate := models.BlockInfo{
+			FileBlockInfo: fileBlockMate,
+			Index:         i,
+			Path:          "./file/tmp/" + fileBlockMate.UploadID + strconv.Itoa(i),
+			Size:          5 * 1024 * 1024,
+			State:         0,
+			Recycled:      "N",
+		}
+		if i+1 == fileBlockMate.BlockCount {
+			blockMate.Size = fileSize % (5 * 1024 * 1024)
+		}
+
+		blockList = append(blockList, blockMate)
+		resList[i] = 0
+	}
+
+	err = blockManager.Set(blockList)
 
 	data := make(map[string]interface{})
 	data["blockState"] = resList
@@ -106,12 +66,34 @@ func initBlockUpload(g *gin.Context) {
 	})
 }
 
-func blockUpload(g *gin.Context) {
+func ResumeFromBreakPoint(g *gin.Context) {
+	uploadId := g.Query("uploadId")
+
+	blockList, err := blockManager.GetByUploadId(uploadId)
+	errCheck(g, err, "Resume: Failed to read block info", http.StatusInternalServerError)
+
+	var resList [...]int
+	for i, blockMate := range blockList {
+		resList[i] = blockMate.State
+	}
+
+	data := make(map[string]interface{})
+	data["blockState"] = resList
+	data["uploadId"] = uploadId
+
+	g.JSON(http.StatusOK, gin.H{
+		"errmsg": "ok",
+		"data":   data,
+	})
+}
+
+func BlockUpload(g *gin.Context) {
 	uploadId := g.PostForm("uploadId")
-	index := g.PostForm("index")
+	indexStr := g.PostForm("index")
 	blockHeader, err := g.FormFile("block")
 	errCheck(g, err, "blockUpload:Failed to get request", http.StatusBadRequest)
 
+	index, _ := strconv.Atoi(indexStr)
 	blockMate, err := blockManager.GetByUploadIdIndex(uploadId, index)
 	errCheck(g, err, "blockUpload:Failed to get block info", http.StatusBadRequest)
 	if blockMate.State == 1 {
@@ -126,7 +108,7 @@ func blockUpload(g *gin.Context) {
 	errCheck(g, err, "blockUpload:Failed to save block", http.StatusInternalServerError)
 
 	blockMate.State = 1
-	err = blockManager.Update("bl_"+uploadId+index, blockMate)
+	err = blockManager.Update(blockMate)
 	errCheck(g, err, "blockUpload:Failed to update block state", http.StatusBadRequest)
 
 	g.JSON(http.StatusOK, gin.H{
@@ -135,8 +117,8 @@ func blockUpload(g *gin.Context) {
 	})
 }
 
-func uploadProgress(g *gin.Context) {
-	uploadId := g.PostForm("uploadId")
+func UploadProgress(g *gin.Context) {
+	uploadId := g.Query("uploadId")
 
 	blockMateList, err := blockManager.GetByUploadId(uploadId)
 	errCheck(g, err, "blockUpload:Failed to get block info", http.StatusInternalServerError)
@@ -158,26 +140,27 @@ func uploadProgress(g *gin.Context) {
 	})
 }
 
-
-func blockMerge(g *gin.Context){
+func BlockMerge(g *gin.Context) {
 	uploadId := g.PostForm("uploadId")
+	userInter, _ := g.Get("userInfo")
+	userMate := userInter.(models.UserInfo)
 
 	blockMateList, err := blockManager.GetByUploadId(uploadId)
 	errCheck(g, err, "blockMerge:Failed to get block info", http.StatusInternalServerError)
 	fileBlockMate, err := fileBlockManager.GetByUploadId(uploadId)
 	errCheck(g, err, "blockMerge:Failed to get file block info", http.StatusInternalServerError)
 
-	targetFile, err := os.OpenFile("./file/"+fileBlockMate.FileName+uploadId,
+	targetFile, err := os.OpenFile("./file/"+uploadId+fileBlockMate.FileName,
 		os.O_CREATE|os.O_WRONLY|os.O_APPEND, os.ModePerm)
 	errCheck(g, err, "blockMerge:Failed to open target file", http.StatusInternalServerError)
 	defer targetFile.Close()
 	for _, blockMate := range blockMateList {
-		if blockMate.State == 0{
-			err = os.Remove("./file/" + fileBlockMate.FileName + uploadId)
+		if blockMate.State == 0 {
+			err = os.Remove("./file/" + uploadId + fileBlockMate.FileName)
 			errCheck(g, err, "blockMerge:Failed to remove target file", 0)
 			g.JSON(http.StatusInternalServerError, gin.H{
 				"errmsg": "blockMerge:Failed to incomplete file",
-				"data": "",
+				"data":   "",
 			})
 			return
 		}
@@ -189,8 +172,57 @@ func blockMerge(g *gin.Context){
 		errCheck(g, err, "blockMerge:Failed to write file", http.StatusInternalServerError)
 		block.Close()
 	}
+
+	fileBlockMate.State = 1
+	err = fileBlockManager.Update(fileBlockMate)
+	errCheck(g, err, "blockMerge:Failed to update file block info", http.StatusInternalServerError)
+
+	fileMate := models.FileInfo{
+		Name:     fileBlockMate.FileName,
+		Size:     fileBlockMate.FileSize,
+		Path:     "./file/" + uploadId + fileBlockMate.FileName,
+		Hash:     fileBlockMate.Hash,
+		IsPublic: 0,
+	}
+	userFileMate := models.UserFileMap{
+		UserInfo: userMate,
+		FileInfo: fileMate,
+		FileName: fileBlockMate.FileName,
+	}
+
+	fileMate.Id, err = fileManager.Set(fileMate)
+	errCheck(g, err, "blockMerge:Failed to set file information", http.StatusInternalServerError)
+	_, err = userFileManager.Set(userFileMate)
+	errCheck(g, err, "blockMerge:Failed to set user_file_map", http.StatusInternalServerError)
+
 	g.JSON(http.StatusOK, gin.H{
 		"errmsg": "ok",
-		"data": "",
+		"data":   "",
+	})
+}
+
+func RemoveBlock(g *gin.Context) {
+	uploadId := g.PostForm("uploadId")
+
+	fileBlockMate, err := fileBlockManager.GetByUploadId(uploadId)
+	errCheck(g, err, "RemoveBlock: Failed to get file block info", http.StatusInternalServerError)
+	if fileBlockMate.State != 1 {
+		g.JSON(http.StatusOK, gin.H{
+			"errmsg": "RemoveBlock: Failed to merge block",
+			"data":   "",
+		})
+		return
+	}
+
+	blockMateList, err := blockManager.GetByUploadId(uploadId)
+	errCheck(g, err, "RemoveBlock: Failed to get block info", http.StatusInternalServerError)
+	for _, blockMate := range blockMateList {
+		err = os.Remove(blockMate.Path)
+		errCheck(g, err, "RemoveBlock: Failed to remove block file", 0)
+	}
+
+	g.JSON(http.StatusOK, gin.H{
+		"errmsg": "ok",
+		"data":   "",
 	})
 }

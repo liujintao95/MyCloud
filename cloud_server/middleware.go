@@ -5,9 +5,10 @@ import (
 	"MyCloud/conf"
 	"MyCloud/utils"
 	"encoding/json"
+	"net/http"
+
 	"github.com/garyburd/redigo/redis"
 	"github.com/gin-gonic/gin"
-	"net/http"
 )
 
 var errCheck = utils.ErrCheck
@@ -22,7 +23,7 @@ func LoginRequired(g *gin.Context) {
 	jsonData, err := redis.Bytes(rc.Do("LRANGE", "token_"+token, 0, -1))
 	errCheck(g, err, "Failed to get token", http.StatusInternalServerError)
 	if jsonData != nil {
-		_ = json.Unmarshal(jsonData, userMate)
+		_ = json.Unmarshal(jsonData, &userMate)
 	}
 
 	if userMate.Pwd == "" {

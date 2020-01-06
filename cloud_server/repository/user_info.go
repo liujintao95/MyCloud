@@ -5,6 +5,7 @@ import (
 	"MyCloud/conf"
 	"MyCloud/utils"
 	"encoding/json"
+
 	"github.com/garyburd/redigo/redis"
 )
 
@@ -141,7 +142,7 @@ func (u *UserManager) GetCache(key string) (models.UserInfo, error) {
 	jsonData, err := redis.Bytes(rc.Do("LRANGE", key, 0, -1))
 	userMate := models.UserInfo{}
 	if jsonData != nil {
-		_ = json.Unmarshal(jsonData, userMate)
+		_ = json.Unmarshal(jsonData, &userMate)
 	}
 	return userMate, err
 }
