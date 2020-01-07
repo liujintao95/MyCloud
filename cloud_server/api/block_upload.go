@@ -147,8 +147,15 @@ func BlockMerge(g *gin.Context) {
 
 	blockMateList, err := blockManager.GetByUploadId(uploadId)
 	errCheck(g, err, "blockMerge:Failed to get block info", http.StatusInternalServerError)
+
 	fileBlockMate, err := fileBlockManager.GetByUploadId(uploadId)
 	errCheck(g, err, "blockMerge:Failed to get file block info", http.StatusInternalServerError)
+
+	fileMate, err := fileManager.GetByHash(fileBlockMate.Hash)
+	errCheck(g, err, "blockMerge:Failed to set file information", http.StatusInternalServerError)
+
+	userFileMate, err := userFileManager.GetByUserFile(userMate.User, fileBlockMate.Hash)
+	errCheck(g, err, "blockMerge:Failed to set user_file_map", http.StatusInternalServerError)
 
 	targetFile, err := os.OpenFile("./file/"+uploadId+fileBlockMate.FileName,
 		os.O_CREATE|os.O_WRONLY|os.O_APPEND, os.ModePerm)
@@ -177,23 +184,13 @@ func BlockMerge(g *gin.Context) {
 	err = fileBlockManager.Update(fileBlockMate)
 	errCheck(g, err, "blockMerge:Failed to update file block info", http.StatusInternalServerError)
 
-	fileMate := models.FileInfo{
-		Name:     fileBlockMate.FileName,
-		Size:     fileBlockMate.FileSize,
-		Path:     "./file/" + uploadId + fileBlockMate.FileName,
-		Hash:     fileBlockMate.Hash,
-		IsPublic: 0,
-	}
-	userFileMate := models.UserFileMap{
-		UserInfo: userMate,
-		FileInfo: fileMate,
-		FileName: fileBlockMate.FileName,
-	}
+	fileMate.State = 1
+	err = fileManager.Update(fileMate)
+	errCheck(g, err, "Upload:Failed to update file state", http.StatusInternalServerError)
 
-	fileMate.Id, err = fileManager.Set(fileMate)
-	errCheck(g, err, "blockMerge:Failed to set file information", http.StatusInternalServerError)
-	_, err = userFileManager.Set(userFileMate)
-	errCheck(g, err, "blockMerge:Failed to set user_file_map", http.StatusInternalServerError)
+	userFileMate.State = 1
+	err = userFileManager.Update(userFileMate)
+	errCheck(g, err, "Upload:Failed to update user file state", http.StatusInternalServerError)
 
 	g.JSON(http.StatusOK, gin.H{
 		"errmsg": "ok",

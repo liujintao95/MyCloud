@@ -20,6 +20,7 @@ type FileInfo struct {
 	Size     int64          `db:"fi_size"`
 	Path     string         `db:"fi_path"`
 	IsPublic int            `db:"fi_is_public"`
+	State    int            `db:"fi_state"`
 	Remark   sql.NullString `db:"fi_remark"`
 	Recycled string         `db:"fi_recycled"`
 }
@@ -31,8 +32,8 @@ type UserFileMap struct {
 	FileName string         `db:"uf_file_name"`
 	Star     int            `db:"uf_star"`
 	IsPublic int            `db:"uf_is_public"`
-	State    sql.NullInt64  `db:"uf_remark"`
-	Remark   sql.NullString `db:"uf_state"`
+	State    int            `db:"uf_state"`
+	Remark   sql.NullString `db:"uf_remark"`
 	Recycled string         `db:"uf_recycled"`
 }
 
@@ -60,9 +61,10 @@ type BlockInfo struct {
 }
 
 type FileDirectory struct {
-	Id       int64    `db:"fd_id"`
-	UserInfo UserInfo `db:"fd_ui_id"`
-	FileInfo FileInfo `db:"fd_fi_id"`
-	IsDir    int      `db:"fd_is_dir"`
-	Fid      int      `db:"fd_fid"`
+	Id          int64          `db:"fd_id"`
+	UserFileMap UserFileMap    `db:"fd_uf_id"`
+	IsDir       int            `db:"fd_is_dir"`
+	DirName     sql.NullString `db:"fd_dir_name"`
+	Fid         int64          `db:"fd_fid"`
+	Recycled    string         `db:"fd_recycled"`
 }

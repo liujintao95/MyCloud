@@ -7,45 +7,74 @@ import (
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 )
 
-// 上传文件
-func Upload(g *gin.Context) {
+func InitFile(g *gin.Context) {
 	remark := g.PostForm("remark")
+	fileName := g.PostForm("fileName")
+	sizeStr := g.PostForm("size")
 	hash := g.PostForm("hash")
-	header, err := g.FormFile("file")
-	errCheck(g, err, "Upload:Failed to get request", http.StatusBadRequest)
 	userInter, _ := g.Get("userInfo")
 	userMate := userInter.(models.UserInfo)
 
+	fileSize, _ := strconv.ParseInt(sizeStr, 10, 64)
 	uploadId := userMate.User + fmt.Sprintf("%x", time.Now().UnixNano())
 
 	fileMate := models.FileInfo{
-		Name:     header.Filename,
-		Size:     header.Size,
-		Path:     "./file/" + uploadId + header.Filename,
-		Hash:     hash,
-		IsPublic: 0,
+		Name: fileName,
+		Size: fileSize,
+		Path: "./file/" + uploadId + fileName,
+		Hash: hash,
 	}
 	userFileMate := models.UserFileMap{
 		UserInfo: userMate,
 		FileInfo: fileMate,
-		FileName: header.Filename,
+		FileName: fileName,
 	}
 	if remark != "" {
 		fileMate.Remark = sql.NullString{String: remark, Valid: true}
 		userFileMate.Remark = sql.NullString{String: remark, Valid: true}
 	}
 
+	lastId, err := fileManager.Set(fileMate)
+	errCheck(g, err, "InitFile:Failed to set file information", http.StatusInternalServerError)
+	fileMate.Id = lastId
+
+	_, err = userFileManager.Set(userFileMate)
+	errCheck(g, err, "InitFile:Failed to set user_file_map", http.StatusInternalServerError)
+
+	g.JSON(http.StatusOK, gin.H{
+		"errmsg": "ok",
+		"data":   nil,
+	})
+}
+
+// 上传文件
+func Upload(g *gin.Context) {
+	hash := g.PostForm("hash")
+	header, err := g.FormFile("file")
+	errCheck(g, err, "Upload:Failed to get request", http.StatusBadRequest)
+	userInter, _ := g.Get("userInfo")
+	userMate := userInter.(models.UserInfo)
+
+	fileMate, err := fileManager.GetByHash(hash)
+	errCheck(g, err, "Upload:Failed to get file info", http.StatusInternalServerError)
+
+	userFileMate, err := userFileManager.GetByUserFile(userMate.User, hash)
+	errCheck(g, err, "Upload:Failed to get file info", http.StatusInternalServerError)
+
 	err = g.SaveUploadedFile(header, fileMate.Path)
 	errCheck(g, err, "Upload:Failed to save file", http.StatusInternalServerError)
 
-	fileMate.Id, err = fileManager.Set(fileMate)
-	errCheck(g, err, "Upload:Failed to set file information", http.StatusInternalServerError)
+	fileMate.State = 1
+	err = fileManager.Update(fileMate)
+	errCheck(g, err, "Upload:Failed to update file state", http.StatusInternalServerError)
 
-	_, err = userFileManager.Set(userFileMate)
-	errCheck(g, err, "Upload:Failed to set user_file_map", http.StatusInternalServerError)
+	userFileMate.State = 1
+	err = userFileManager.Update(userFileMate)
+	errCheck(g, err, "Upload:Failed to update user file state", http.StatusInternalServerError)
 
 	g.JSON(http.StatusOK, gin.H{
 		"errmsg": "ok",

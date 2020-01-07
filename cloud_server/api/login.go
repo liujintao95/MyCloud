@@ -19,6 +19,7 @@ var fileManager = repository.NewFileManager()
 var userFileManager = repository.NewUserFileManager()
 var fileBlockManager = repository.NewFileBlockManager()
 var blockManager = repository.NewBlockManager()
+var dirManager = repository.NewDirManager()
 
 // 用户登录
 func Sign(g *gin.Context) {
@@ -139,5 +140,4 @@ func Logout(g *gin.Context) {
 		"errmsg": "ok",
 		"data":   nil,
 	})
-
 }

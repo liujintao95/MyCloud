@@ -12,7 +12,7 @@ import (
 type IFile interface {
 	GetByHash(string) (models.FileInfo, error)
 	Set(models.FileInfo) (int64, error)
-	Update(string, models.FileInfo) error
+	Update(models.FileInfo) error
 	DeleteByHash(string) error
 
 	GetSqlByHash(string) (models.FileInfo, error)
@@ -54,8 +54,13 @@ func (f *FileManager) Set(fileMate models.FileInfo) (int64, error) {
 	return id, err
 }
 
-func (f *FileManager) Update(key string, fileMate models.FileInfo) error {
-	panic("implement me")
+func (f *FileManager) Update(fileMate models.FileInfo) error {
+	err := f.UpdateSql(fileMate)
+	if err != nil {
+		return err
+	}
+	err = f.SetCache(fileMate.Hash, fileMate)
+	return err
 }
 
 func (f *FileManager) DeleteByHash(hash string) error {
@@ -71,7 +76,8 @@ func (f *FileManager) GetSqlByHash(hash string) (models.FileInfo, error) {
 	fileMate := new(models.FileInfo)
 	getSql := `
 		SELECT fi_id, fi_name, fi_hash, fi_size,
-		fi_path, fi_remark, fi_is_public, fi_recycled
+		fi_path, fi_state, fi_remark, fi_is_public,
+		fi_recycled
 		FROM file_info 
 		WHERE fi_hash = ?
 		AND fi_recycled == 'N'
@@ -79,8 +85,9 @@ func (f *FileManager) GetSqlByHash(hash string) (models.FileInfo, error) {
 	rows := utils.Conn.QueryRow(getSql, hash)
 	err := rows.Scan(
 		fileMate.Id, fileMate.Name, fileMate.Hash,
-		fileMate.Size, fileMate.Path, fileMate.Remark,
-		fileMate.IsPublic, fileMate.Recycled,
+		fileMate.Size, fileMate.Path, fileMate.State,
+		fileMate.Remark, fileMate.IsPublic,
+		fileMate.Recycled,
 	)
 	return *fileMate, err
 }
@@ -110,14 +117,14 @@ func (f *FileManager) SetSql(fileMate models.FileInfo) (int64, error) {
 func (f *FileManager) UpdateSql(fileMate models.FileInfo) error {
 	updateSql := `
 		UPDATE file_info 
-		SET fi_name=?, fi_size=?, fi_path=?,
-		fi_remark=?, fi_is_public=?, fi_recycled
+		SET fi_name=?, fi_size=?, fi_path=?, fi_state=?
+		fi_remark=?, fi_is_public=?, fi_recycled=?
 		WHERE fi_hash=?
 	`
 	_, err := utils.Conn.Exec(
 		updateSql,
 		fileMate.Name, fileMate.Size, fileMate.Path,
-		fileMate.Remark, fileMate.IsPublic,
+		fileMate.State, fileMate.Remark, fileMate.IsPublic,
 		fileMate.Recycled, fileMate.Hash,
 	)
 	return err
