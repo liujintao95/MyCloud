@@ -14,16 +14,24 @@ func UrlMap(router *gin.Engine) {
 	authorized := router.Group("/auth", LoginRequired)
 	authorized.POST("/user/change/password", api.PasswordChange)
 	authorized.POST("/user/change/username", api.UsernameChange)
+
+	authorized.POST("/file/init", api.InitFile)
 	authorized.POST("/file/upload", api.Upload)
 	authorized.POST("/file/rapid_upload", api.RapidUpload)
 	authorized.GET("/file/download", api.Download)
 	authorized.GET("/file/public_download", api.PublicDownload)
 	authorized.POST("/file/update", api.UpdateFileName)
 	authorized.POST("/file/delete", api.Delete)
+
 	authorized.POST("/block/init", api.InitBlockUpload)
 	authorized.GET("/block/resume", api.ResumeFromBreakPoint)
 	authorized.POST("/block/upload", api.BlockUpload)
 	authorized.GET("/block/progress", api.UploadProgress)
 	authorized.POST("/block/merge", api.BlockMerge)
 	authorized.POST("/block/remove", api.RemoveBlock)
+
+	authorized.GET("/dir/show", api.ShowDir)
+	authorized.GET("/dir/save", api.SaveDir)
+	authorized.GET("/dir/change", api.ChangeDir)
+	authorized.GET("/dir/remove", api.RemoveDir)
 }

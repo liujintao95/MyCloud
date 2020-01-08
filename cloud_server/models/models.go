@@ -64,7 +64,7 @@ type FileDirectory struct {
 	Id          int64          `db:"fd_id"`
 	UserFileMap UserFileMap    `db:"fd_uf_id"`
 	IsDir       int            `db:"fd_is_dir"`
-	DirName     sql.NullString `db:"fd_dir_name"`
+	DirName     string `db:"fd_dir_name"`
 	Fid         int64          `db:"fd_fid"`
 	Recycled    string         `db:"fd_recycled"`
 }

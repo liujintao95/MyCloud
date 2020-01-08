@@ -3,14 +3,14 @@ package repository
 import "MyCloud/cloud_server/models"
 
 type IDir interface {
-	GetByFiD(int) ([]models.FileDirectory, error)
+	GetByFid(int) ([]models.FileDirectory, error)
 	GetById(int) (models.FileDirectory, error)
 	Set([]models.FileDirectory) error
 	Update(models.FileDirectory) error
 	DeleteById(int) error
 
 	GetSqlMaxId() (int64, error)
-	GetSqlByFiD(int) ([]models.FileDirectory, error)
+	GetSqlByFid(int) ([]models.FileDirectory, error)
 	GetSqlById(int) (models.FileDirectory, error)
 	SetSql([]models.FileDirectory) error
 	UpdateSql(models.FileDirectory) error
@@ -29,7 +29,7 @@ func NewDirManager() IDir {
 	return &DirManager{table: "file_directory"}
 }
 
-func (d DirManager) GetByFiD(int) ([]models.FileDirectory, error) {
+func (d DirManager) GetByFid(int) ([]models.FileDirectory, error) {
 	panic("implement me")
 }
 
@@ -53,7 +53,7 @@ func (d DirManager) GetSqlMaxId() (int64, error) {
 	panic("implement me")
 }
 
-func (d DirManager) GetSqlByFiD(int) ([]models.FileDirectory, error) {
+func (d DirManager) GetSqlByFid(int) ([]models.FileDirectory, error) {
 	panic("implement me")
 }
 

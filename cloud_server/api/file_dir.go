@@ -14,7 +14,7 @@ func ShowDir(g *gin.Context) {
 	curDirId, err := strconv.Atoi(dirIdStr)
 	errCheck(g, err, "Sign:Failed to convert dir id", http.StatusInternalServerError)
 
-	dirList, err := dirManager.GetByFiD(curDirId)
+	dirList, err := dirManager.GetByFid(curDirId)
 	errCheck(g, err, "Sign:Failed to get dir list", http.StatusInternalServerError)
 
 	var resList [][]string
@@ -28,7 +28,7 @@ func ShowDir(g *gin.Context) {
 			dirMate.UserFileMap.FileInfo.Hash,
 			strconv.FormatInt(dirMate.UserFileMap.FileInfo.Size, 10),
 			strconv.Itoa(dirMate.IsDir),
-			dirMate.DirName.String,
+			dirMate.DirName,
 		}
 		resList = append(resList, msg)
 	}
@@ -61,6 +61,7 @@ func SaveDir(g *gin.Context) {
 
 		dirMate := models.FileDirectory{}
 		dirMate.Id = maxId
+		dirMate.DirName = curDir+fileName
 
 		if curDir == "/" {
 			dirMate.Fid = -1
@@ -75,8 +76,6 @@ func SaveDir(g *gin.Context) {
 			dirMate.UserFileMap = userFileMate
 			dirMate.IsDir = 0
 		} else {
-			dirMate.DirName.String = fileName
-			dirMate.DirName.Valid = true
 			dirMate.IsDir = 1
 		}
 
@@ -84,12 +83,51 @@ func SaveDir(g *gin.Context) {
 	}
 	err = dirManager.Set(dirMateList)
 	errCheck(g, err, "SaveDir:Failed to set dir list", http.StatusInternalServerError)
+
+	g.JSON(http.StatusOK, gin.H{
+		"errmsg": "ok",
+		"data":   "",
+	})
 }
 
 func ChangeDir(g *gin.Context) {
+	idStr := g.PostForm("id")
+	targetIdStr := g.PostForm("targetId")
 
+	id, err := strconv.Atoi(idStr)
+	targetId, err := strconv.ParseInt(targetIdStr, 64, 10)
+	errCheck(g, err, "ChangeDir:Failed to convert dir id", http.StatusInternalServerError)
+
+	dirMate, err := dirManager.GetById(id)
+	errCheck(g, err, "ChangeDir:Failed to get dir info", http.StatusInternalServerError)
+
+	dirMate.Fid = targetId
+
+	err = dirManager.Update(dirMate)
+	errCheck(g, err, "ChangeDir:Failed to update dir info", http.StatusInternalServerError)
+
+	g.JSON(http.StatusOK, gin.H{
+		"errmsg": "ok",
+		"data":   "",
+	})
 }
 
 func RemoveDir(g *gin.Context) {
+	idStr := g.PostForm("id")
 
+	id, err := strconv.Atoi(idStr)
+	errCheck(g, err, "RemoveDir:Failed to convert dir id", http.StatusInternalServerError)
+
+	dirMate, err := dirManager.GetById(id)
+	errCheck(g, err, "RemoveDir:Failed to get dir info", http.StatusInternalServerError)
+
+	dirMate.Recycled = "Y"
+
+	err = dirManager.Update(dirMate)
+	errCheck(g, err, "RemoveDir:Failed to update dir info", http.StatusInternalServerError)
+
+	g.JSON(http.StatusOK, gin.H{
+		"errmsg": "ok",
+		"data":   "",
+	})
 }
