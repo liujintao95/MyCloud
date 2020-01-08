@@ -95,7 +95,8 @@ func (u *UserManager) SetSql(userMate models.UserInfo) (int64, error) {
 			ui_user, ui_name, ui_pwd,
 			ui_level, ui_email, ui_phone
 		) 
-		VALUES (?,?,?,?,?,?)`
+		VALUES (?,?,?,?,?,?)
+	`
 	res, err := utils.Conn.Exec(
 		insertSql,
 		userMate.User, userMate.User, userMate.Pwd,

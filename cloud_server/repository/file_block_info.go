@@ -107,7 +107,8 @@ func (f FileBlockManager) SetSql(fileBlockMate models.FileBlockInfo) (int64, err
 			fbi_hash, fbi_file_name, fbi_ui_id, fbi_upload_id,
 			fbi_file_size, fbi_block_size, fbi_block_count
 		) 
-		VALUES (?,?,?,?,?,?,?)`
+		VALUES (?,?,?,?,?,?,?)
+	`
 	res, err := utils.Conn.Exec(
 		insertSql,
 		fileBlockMate.Hash, fileBlockMate.FileName,

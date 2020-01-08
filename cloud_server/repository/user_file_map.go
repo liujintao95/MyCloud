@@ -177,7 +177,8 @@ func (u UserFileManager) SetSql(userFileMate models.UserFileMap) (int64, error) 
 			uf_ui_id, uf_fi_id, uf_file_name,
 			uf_remark
 		) 
-		VALUES (?,?,?,?)`
+		VALUES (?,?,?,?)
+	`
 	res, err := utils.Conn.Exec(
 		insertSql,
 		userFileMate.UserInfo.Id, userFileMate.FileInfo.Id,

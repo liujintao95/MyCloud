@@ -11,7 +11,7 @@ import (
 func ShowDir(g *gin.Context) {
 	dirIdStr := g.Query("dirId")
 
-	curDirId, err := strconv.Atoi(dirIdStr)
+	curDirId, err := strconv.ParseInt(dirIdStr, 64, 10)
 	errCheck(g, err, "Sign:Failed to convert dir id", http.StatusInternalServerError)
 
 	dirList, err := dirManager.GetByFid(curDirId)
@@ -61,7 +61,7 @@ func SaveDir(g *gin.Context) {
 
 		dirMate := models.FileDirectory{}
 		dirMate.Id = maxId
-		dirMate.DirName = curDir+fileName
+		dirMate.DirName = curDir + fileName
 
 		if curDir == "/" {
 			dirMate.Fid = -1
@@ -94,11 +94,11 @@ func ChangeDir(g *gin.Context) {
 	idStr := g.PostForm("id")
 	targetIdStr := g.PostForm("targetId")
 
-	id, err := strconv.Atoi(idStr)
+	id, err := strconv.ParseInt(idStr, 64, 10)
 	targetId, err := strconv.ParseInt(targetIdStr, 64, 10)
 	errCheck(g, err, "ChangeDir:Failed to convert dir id", http.StatusInternalServerError)
 
-	dirMate, err := dirManager.GetById(id)
+	dirMate, err := dirManager.GetSqlById(id)
 	errCheck(g, err, "ChangeDir:Failed to get dir info", http.StatusInternalServerError)
 
 	dirMate.Fid = targetId
@@ -118,13 +118,8 @@ func RemoveDir(g *gin.Context) {
 	id, err := strconv.Atoi(idStr)
 	errCheck(g, err, "RemoveDir:Failed to convert dir id", http.StatusInternalServerError)
 
-	dirMate, err := dirManager.GetById(id)
-	errCheck(g, err, "RemoveDir:Failed to get dir info", http.StatusInternalServerError)
-
-	dirMate.Recycled = "Y"
-
-	err = dirManager.Update(dirMate)
-	errCheck(g, err, "RemoveDir:Failed to update dir info", http.StatusInternalServerError)
+	err = dirManager.DeleteById(id)
+	errCheck(g, err, "RemoveDir:Failed to del dir info", http.StatusInternalServerError)
 
 	g.JSON(http.StatusOK, gin.H{
 		"errmsg": "ok",

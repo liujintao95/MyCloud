@@ -98,7 +98,8 @@ func (f *FileManager) SetSql(fileMate models.FileInfo) (int64, error) {
 			fi_name, fi_hash, fi_size,
 			fi_path, fi_remark
 		) 
-		VALUES (?,?,?,?,?)`
+		VALUES (?,?,?,?,?)
+	`
 	res, err := utils.Conn.Exec(
 		insertSql,
 		fileMate.Name, fileMate.Hash, fileMate.Size,

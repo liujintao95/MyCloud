@@ -44,7 +44,7 @@ func (b BlockManager) GetByUploadIdIndex(uploadID string, index int) (models.Blo
 			}
 		}
 	}
-	blockMate, err := b.GetByUploadIdIndex(uploadID, index)
+	blockMate, err := b.GetSqlByUploadIdIndex(uploadID, index)
 	return blockMate, err
 }
 
@@ -183,7 +183,8 @@ func (b BlockManager) SetSql(blockList []models.BlockInfo) error {
 			bi_upload_id, bi_index, bi_path,
 			bi_size, bi_state
 		) 
-		VALUES (?,?,?,?,?)`
+		VALUES (?,?,?,?,?)
+	`
 
 	for _, blockMate := range blockList {
 		insertSql += ",(?,?,?,?,?)"
@@ -229,15 +230,15 @@ func (b BlockManager) GetCache(key string) ([]models.BlockInfo, error) {
 	defer rc.Close()
 
 	jsonData, err := redis.Bytes(rc.Do("LRANGE", key, 0, -1))
-	var blockMate []models.BlockInfo
+	var blockList []models.BlockInfo
 	if jsonData != nil {
-		_ = json.Unmarshal(jsonData, &blockMate)
+		_ = json.Unmarshal(jsonData, &blockList)
 	}
-	return blockMate, err
+	return blockList, err
 }
 
-func (b BlockManager) SetCache(key string, fileBlock []models.BlockInfo) error {
-	jsonData, err := json.Marshal(fileBlock)
+func (b BlockManager) SetCache(key string, fileBlockList []models.BlockInfo) error {
+	jsonData, err := json.Marshal(fileBlockList)
 
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
