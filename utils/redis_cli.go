@@ -21,11 +21,11 @@ func RedisInit() {
 				Logging.Error(err)
 				return nil, fmt.Errorf("redis connection error: %s", err)
 			}
-			if _, err := c.Do("AUTH", conf.RedisConf["auth"]); err != nil {
-				_ = c.Close()
-				Logging.Error(err)
-				return nil, fmt.Errorf("redis auth password error: %s", err)
-			}
+			//if _, err := c.Do("AUTH", conf.RedisConf["auth"]); err != nil {
+			//	_ = c.Close()
+			//	Logging.Error(err)
+			//	return nil, fmt.Errorf("redis auth password error: %s", err)
+			//}
 			return c, nil
 		},
 		TestOnBorrow: func(c redis.Conn, t time.Time) error {

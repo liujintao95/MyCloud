@@ -35,10 +35,7 @@ func NewUserManager() IUser {
 
 func (u *UserManager) GetByUser(user string) (models.UserInfo, error) {
 	userMate, err := u.GetCache(user)
-	if err != nil {
-		return userMate, err
-	}
-	if userMate.Pwd == "" {
+	if err != nil{
 		userMate, err = u.GetSqlByUser(user)
 		if err == nil {
 			err = u.SetCache(user, userMate)
@@ -72,21 +69,21 @@ func (u *UserManager) DeleteByUser(string) error {
 }
 
 func (u *UserManager) GetSqlByUser(user string) (models.UserInfo, error) {
-	userMate := new(models.UserInfo)
+	var userMate models.UserInfo
 	getSql := `
 		SELECT ui_id, ui_name, ui_user, ui_pwd,
 		ui_level, ui_email,ui_phone, ui_recycled
 		FROM user_info 
 		WHERE ui_user = ?
-		AND ui_recycled == 'N'
+		AND ui_recycled = 'N'
 	`
 	rows := utils.Conn.QueryRow(getSql, user)
 	err := rows.Scan(
-		userMate.Id, userMate.Name, userMate.User,
-		userMate.Pwd, userMate.Level, userMate.Email,
-		userMate.Phone, userMate.Recycled,
+		&userMate.Id, &userMate.Name, &userMate.User,
+		&userMate.Pwd, &userMate.Level, &userMate.Email,
+		&userMate.Phone, &userMate.Recycled,
 	)
-	return *userMate, err
+	return userMate, err
 }
 
 func (u *UserManager) SetSql(userMate models.UserInfo) (int64, error) {
@@ -139,8 +136,7 @@ func (u *UserManager) DelSqlByUser(user string) error {
 func (u *UserManager) GetCache(key string) (models.UserInfo, error) {
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
-
-	jsonData, err := redis.Bytes(rc.Do("LRANGE", key, 0, -1))
+	jsonData, err := redis.Bytes(rc.Do("GET", key))
 	userMate := models.UserInfo{}
 	if jsonData != nil {
 		_ = json.Unmarshal(jsonData, &userMate)
@@ -154,7 +150,7 @@ func (u *UserManager) SetCache(key string, userMate models.UserInfo) error {
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 
-	_, err = rc.Do("LPUSH", key, string(jsonData), "EX", string(conf.REDIS_MAXAGE))
+	_, err = rc.Do("SET", key, string(jsonData), "EX", conf.REDIS_MAXAGE)
 	return err
 }
 

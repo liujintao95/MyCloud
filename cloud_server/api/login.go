@@ -63,9 +63,13 @@ func Sign(g *gin.Context) {
 		g.SetCookie(
 			"token", token, conf.COOKIE_MAXAGE, "/",
 			"localhost", false, true)
+
+		data := make(map[string]interface{})
+		data["level"] = userMate.Level
+		data["token"] = token
 		g.JSON(http.StatusOK, gin.H{
 			"errmsg": "ok",
-			"data":   nil,
+			"data":   data,
 		})
 	}
 }

@@ -20,7 +20,7 @@ func LoginRequired(g *gin.Context) {
 	defer rc.Close()
 
 	userMate := models.UserInfo{}
-	jsonData, err := redis.Bytes(rc.Do("LRANGE", "token_"+token, 0, -1))
+	jsonData, err := redis.Bytes(rc.Do("GET", "token_"+token))
 	errCheck(g, err, "Failed to get token", http.StatusInternalServerError)
 	if jsonData != nil {
 		_ = json.Unmarshal(jsonData, &userMate)

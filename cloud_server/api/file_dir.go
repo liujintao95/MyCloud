@@ -115,7 +115,7 @@ func ChangeDir(g *gin.Context) {
 func RemoveDir(g *gin.Context) {
 	idStr := g.PostForm("id")
 
-	id, err := strconv.Atoi(idStr)
+	id, err := strconv.ParseInt(idStr, 64, 10)
 	errCheck(g, err, "RemoveDir:Failed to convert dir id", http.StatusInternalServerError)
 
 	err = dirManager.DeleteById(id)

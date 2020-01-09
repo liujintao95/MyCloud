@@ -39,7 +39,7 @@ func (d DirManager) GetByFid(fid int64) ([]models.FileDirectory, error) {
 	fidStr := strconv.FormatInt(fid, 64)
 
 	dirList, err := d.GetCache("dirFid_" + fidStr)
-	if err == nil && len(dirList) == 0 {
+	if err != nil{
 		dirList, err = d.GetSqlByFid(fid)
 		if err == nil {
 			err = d.SetCache("dirFid_" + fidStr, dirList)
@@ -101,7 +101,7 @@ func (d DirManager) GetSqlMaxId() (int64, error) {
 		FROM file_directory
 	`
 	rows := utils.Conn.QueryRow(getSql)
-	err := rows.Scan(res)
+	err := rows.Scan(&res)
 	return res, err
 }
 
@@ -132,38 +132,38 @@ func (d DirManager) GetSqlByFid(fid int64) ([]models.FileDirectory, error) {
 	}
 
 	for rows.Next() {
-		dirMate := new(models.FileDirectory)
+		var dirMate models.FileDirectory
 		_ = rows.Scan(
-			dirMate.Id, dirMate.IsDir, dirMate.DirName,
-			dirMate.Fid, dirMate.Recycled, dirMate.UserFileMap.Id,
-			dirMate.UserFileMap.FileName, dirMate.UserFileMap.Star,
-			dirMate.UserFileMap.IsPublic, dirMate.UserFileMap.State,
-			dirMate.UserFileMap.Remark, dirMate.UserFileMap.Recycled,
-			dirMate.UserFileMap.UserInfo.Id,
-			dirMate.UserFileMap.UserInfo.Name,
-			dirMate.UserFileMap.UserInfo.User,
-			dirMate.UserFileMap.UserInfo.Pwd,
-			dirMate.UserFileMap.UserInfo.Level,
-			dirMate.UserFileMap.UserInfo.Email,
-			dirMate.UserFileMap.UserInfo.Phone,
-			dirMate.UserFileMap.UserInfo.Recycled,
-			dirMate.UserFileMap.FileInfo.Id,
-			dirMate.UserFileMap.FileInfo.Name,
-			dirMate.UserFileMap.FileInfo.Hash,
-			dirMate.UserFileMap.FileInfo.Size,
-			dirMate.UserFileMap.FileInfo.Path,
-			dirMate.UserFileMap.FileInfo.IsPublic,
-			dirMate.UserFileMap.FileInfo.State,
-			dirMate.UserFileMap.FileInfo.Remark,
-			dirMate.UserFileMap.FileInfo.Recycled,
+			&dirMate.Id, &dirMate.IsDir, &dirMate.DirName,
+			&dirMate.Fid, &dirMate.Recycled, &dirMate.UserFileMap.Id,
+			&dirMate.UserFileMap.FileName, &dirMate.UserFileMap.Star,
+			&dirMate.UserFileMap.IsPublic, &dirMate.UserFileMap.State,
+			&dirMate.UserFileMap.Remark, &dirMate.UserFileMap.Recycled,
+			&dirMate.UserFileMap.UserInfo.Id,
+			&dirMate.UserFileMap.UserInfo.Name,
+			&dirMate.UserFileMap.UserInfo.User,
+			&dirMate.UserFileMap.UserInfo.Pwd,
+			&dirMate.UserFileMap.UserInfo.Level,
+			&dirMate.UserFileMap.UserInfo.Email,
+			&dirMate.UserFileMap.UserInfo.Phone,
+			&dirMate.UserFileMap.UserInfo.Recycled,
+			&dirMate.UserFileMap.FileInfo.Id,
+			&dirMate.UserFileMap.FileInfo.Name,
+			&dirMate.UserFileMap.FileInfo.Hash,
+			&dirMate.UserFileMap.FileInfo.Size,
+			&dirMate.UserFileMap.FileInfo.Path,
+			&dirMate.UserFileMap.FileInfo.IsPublic,
+			&dirMate.UserFileMap.FileInfo.State,
+			&dirMate.UserFileMap.FileInfo.Remark,
+			&dirMate.UserFileMap.FileInfo.Recycled,
 		)
-		dirList = append(dirList, *dirMate)
+		dirList = append(dirList, dirMate)
 	}
 	return dirList, err
 }
 
 func (d DirManager) GetSqlById(id int64) (models.FileDirectory, error) {
-	dirMate := new(models.FileDirectory)
+	var dirMate models.FileDirectory
 
 	getSql := `
 		SELECT fd_id, fd_is_dir, fd_dir_name, fd_fid,
@@ -185,30 +185,30 @@ func (d DirManager) GetSqlById(id int64) (models.FileDirectory, error) {
 	`
 	rows := utils.Conn.QueryRow(getSql, id)
 	err := rows.Scan(
-		dirMate.Id, dirMate.IsDir, dirMate.DirName,
-		dirMate.Fid, dirMate.Recycled, dirMate.UserFileMap.Id,
-		dirMate.UserFileMap.FileName, dirMate.UserFileMap.Star,
-		dirMate.UserFileMap.IsPublic, dirMate.UserFileMap.State,
-		dirMate.UserFileMap.Remark, dirMate.UserFileMap.Recycled,
-		dirMate.UserFileMap.UserInfo.Id,
-		dirMate.UserFileMap.UserInfo.Name,
-		dirMate.UserFileMap.UserInfo.User,
-		dirMate.UserFileMap.UserInfo.Pwd,
-		dirMate.UserFileMap.UserInfo.Level,
-		dirMate.UserFileMap.UserInfo.Email,
-		dirMate.UserFileMap.UserInfo.Phone,
-		dirMate.UserFileMap.UserInfo.Recycled,
-		dirMate.UserFileMap.FileInfo.Id,
-		dirMate.UserFileMap.FileInfo.Name,
-		dirMate.UserFileMap.FileInfo.Hash,
-		dirMate.UserFileMap.FileInfo.Size,
-		dirMate.UserFileMap.FileInfo.Path,
-		dirMate.UserFileMap.FileInfo.IsPublic,
-		dirMate.UserFileMap.FileInfo.State,
-		dirMate.UserFileMap.FileInfo.Remark,
-		dirMate.UserFileMap.FileInfo.Recycled,
+		&dirMate.Id, &dirMate.IsDir, &dirMate.DirName,
+		&dirMate.Fid, &dirMate.Recycled, &dirMate.UserFileMap.Id,
+		&dirMate.UserFileMap.FileName, &dirMate.UserFileMap.Star,
+		&dirMate.UserFileMap.IsPublic, &dirMate.UserFileMap.State,
+		&dirMate.UserFileMap.Remark, &dirMate.UserFileMap.Recycled,
+		&dirMate.UserFileMap.UserInfo.Id,
+		&dirMate.UserFileMap.UserInfo.Name,
+		&dirMate.UserFileMap.UserInfo.User,
+		&dirMate.UserFileMap.UserInfo.Pwd,
+		&dirMate.UserFileMap.UserInfo.Level,
+		&dirMate.UserFileMap.UserInfo.Email,
+		&dirMate.UserFileMap.UserInfo.Phone,
+		&dirMate.UserFileMap.UserInfo.Recycled,
+		&dirMate.UserFileMap.FileInfo.Id,
+		&dirMate.UserFileMap.FileInfo.Name,
+		&dirMate.UserFileMap.FileInfo.Hash,
+		&dirMate.UserFileMap.FileInfo.Size,
+		&dirMate.UserFileMap.FileInfo.Path,
+		&dirMate.UserFileMap.FileInfo.IsPublic,
+		&dirMate.UserFileMap.FileInfo.State,
+		&dirMate.UserFileMap.FileInfo.Remark,
+		&dirMate.UserFileMap.FileInfo.Recycled,
 	)
-	return *dirMate, err
+	return dirMate, err
 }
 
 func (d DirManager) SetSql(dirList []models.FileDirectory) error {
@@ -264,7 +264,7 @@ func (d DirManager) GetCache(key string) ([]models.FileDirectory, error) {
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 
-	jsonData, err := redis.Bytes(rc.Do("LRANGE", key, 0, -1))
+	jsonData, err := redis.Bytes(rc.Do("GET", key))
 	var dirList []models.FileDirectory
 	if jsonData != nil {
 		_ = json.Unmarshal(jsonData, &dirList)
@@ -278,7 +278,7 @@ func (d DirManager) SetCache(key string, dirList []models.FileDirectory) error {
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 
-	_, err = rc.Do("LPUSH", key, string(jsonData), "EX", string(conf.REDIS_MAXAGE))
+	_, err = rc.Do("SET", key, string(jsonData), "EX", conf.REDIS_MAXAGE)
 	return err
 }
 

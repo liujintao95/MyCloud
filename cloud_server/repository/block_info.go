@@ -37,7 +37,7 @@ func NewBlockManager() IBlock {
 func (b BlockManager) GetByUploadIdIndex(uploadID string, index int) (models.BlockInfo, error) {
 	blockList, err := b.GetCache("bl_" + uploadID)
 
-	if err == nil && len(blockList) != 0 {
+	if err != nil{
 		for _, blockMate := range blockList {
 			if blockMate.Index == index {
 				return blockMate, err
@@ -50,7 +50,7 @@ func (b BlockManager) GetByUploadIdIndex(uploadID string, index int) (models.Blo
 
 func (b BlockManager) GetByUploadId(uploadID string) ([]models.BlockInfo, error) {
 	blockList, err := b.GetCache("bl_" + uploadID)
-	if err == nil && len(blockList) == 0 {
+	if err != nil{
 		blockList, err = b.GetByUploadId(uploadID)
 		if err == nil {
 			err = b.SetCache("bl_"+uploadID, blockList)
@@ -92,7 +92,7 @@ func (b BlockManager) DeleteByUploadId(uploadID string) error {
 }
 
 func (b BlockManager) GetSqlByUploadIdIndex(uploadId string, index int) (models.BlockInfo, error) {
-	blockMate := new(models.BlockInfo)
+	var blockMate models.BlockInfo
 
 	getSql := `
 		SELECT bi_id, bi_index, bi_path, bi_size, bi_state,
@@ -112,22 +112,22 @@ func (b BlockManager) GetSqlByUploadIdIndex(uploadId string, index int) (models.
 	`
 	rows := utils.Conn.QueryRow(getSql, uploadId, index)
 	err := rows.Scan(
-		blockMate.Id, blockMate.Index, blockMate.Path,
-		blockMate.Size, blockMate.State, blockMate.Recycled,
-		blockMate.FileBlockInfo.Id, blockMate.FileBlockInfo.Hash,
-		blockMate.FileBlockInfo.FileName, blockMate.FileBlockInfo.UploadID,
-		blockMate.FileBlockInfo.FileSize, blockMate.FileBlockInfo.BlockSize,
-		blockMate.FileBlockInfo.BlockCount, blockMate.FileBlockInfo.Recycled,
-		blockMate.FileBlockInfo.UserInfo.Id,
-		blockMate.FileBlockInfo.UserInfo.Name,
-		blockMate.FileBlockInfo.UserInfo.User,
-		blockMate.FileBlockInfo.UserInfo.Pwd,
-		blockMate.FileBlockInfo.UserInfo.Level,
-		blockMate.FileBlockInfo.UserInfo.Email,
-		blockMate.FileBlockInfo.UserInfo.Phone,
-		blockMate.FileBlockInfo.UserInfo.Recycled,
+		&blockMate.Id, &blockMate.Index, &blockMate.Path,
+		&blockMate.Size, &blockMate.State, &blockMate.Recycled,
+		&blockMate.FileBlockInfo.Id, &blockMate.FileBlockInfo.Hash,
+		&blockMate.FileBlockInfo.FileName, &blockMate.FileBlockInfo.UploadID,
+		&blockMate.FileBlockInfo.FileSize, &blockMate.FileBlockInfo.BlockSize,
+		&blockMate.FileBlockInfo.BlockCount, &blockMate.FileBlockInfo.Recycled,
+		&blockMate.FileBlockInfo.UserInfo.Id,
+		&blockMate.FileBlockInfo.UserInfo.Name,
+		&blockMate.FileBlockInfo.UserInfo.User,
+		&blockMate.FileBlockInfo.UserInfo.Pwd,
+		&blockMate.FileBlockInfo.UserInfo.Level,
+		&blockMate.FileBlockInfo.UserInfo.Email,
+		&blockMate.FileBlockInfo.UserInfo.Phone,
+		&blockMate.FileBlockInfo.UserInfo.Recycled,
 	)
-	return *blockMate, err
+	return blockMate, err
 }
 
 func (b BlockManager) GetSqlByUploadId(uploadId string) ([]models.BlockInfo, error) {
@@ -154,24 +154,24 @@ func (b BlockManager) GetSqlByUploadId(uploadId string) ([]models.BlockInfo, err
 	}
 
 	for rows.Next() {
-		blockMate := new(models.BlockInfo)
+		var blockMate models.BlockInfo
 		_ = rows.Scan(
-			blockMate.Id, blockMate.Index, blockMate.Path,
-			blockMate.Size, blockMate.State, blockMate.Recycled,
-			blockMate.FileBlockInfo.Id, blockMate.FileBlockInfo.Hash,
-			blockMate.FileBlockInfo.FileName, blockMate.FileBlockInfo.UploadID,
-			blockMate.FileBlockInfo.FileSize, blockMate.FileBlockInfo.BlockSize,
-			blockMate.FileBlockInfo.BlockCount, blockMate.FileBlockInfo.Recycled,
-			blockMate.FileBlockInfo.UserInfo.Id,
-			blockMate.FileBlockInfo.UserInfo.Name,
-			blockMate.FileBlockInfo.UserInfo.User,
-			blockMate.FileBlockInfo.UserInfo.Pwd,
-			blockMate.FileBlockInfo.UserInfo.Level,
-			blockMate.FileBlockInfo.UserInfo.Email,
-			blockMate.FileBlockInfo.UserInfo.Phone,
-			blockMate.FileBlockInfo.UserInfo.Recycled,
+			&blockMate.Id, &blockMate.Index, &blockMate.Path,
+			&blockMate.Size, &blockMate.State, &blockMate.Recycled,
+			&blockMate.FileBlockInfo.Id, &blockMate.FileBlockInfo.Hash,
+			&blockMate.FileBlockInfo.FileName, &blockMate.FileBlockInfo.UploadID,
+			&blockMate.FileBlockInfo.FileSize, &blockMate.FileBlockInfo.BlockSize,
+			&blockMate.FileBlockInfo.BlockCount, &blockMate.FileBlockInfo.Recycled,
+			&blockMate.FileBlockInfo.UserInfo.Id,
+			&blockMate.FileBlockInfo.UserInfo.Name,
+			&blockMate.FileBlockInfo.UserInfo.User,
+			&blockMate.FileBlockInfo.UserInfo.Pwd,
+			&blockMate.FileBlockInfo.UserInfo.Level,
+			&blockMate.FileBlockInfo.UserInfo.Email,
+			&blockMate.FileBlockInfo.UserInfo.Phone,
+			&blockMate.FileBlockInfo.UserInfo.Recycled,
 		)
-		blockList = append(blockList, *blockMate)
+		blockList = append(blockList, blockMate)
 	}
 	return blockList, err
 }
@@ -229,7 +229,7 @@ func (b BlockManager) GetCache(key string) ([]models.BlockInfo, error) {
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 
-	jsonData, err := redis.Bytes(rc.Do("LRANGE", key, 0, -1))
+	jsonData, err := redis.Bytes(rc.Do("GET", key))
 	var blockList []models.BlockInfo
 	if jsonData != nil {
 		_ = json.Unmarshal(jsonData, &blockList)
@@ -243,7 +243,7 @@ func (b BlockManager) SetCache(key string, fileBlockList []models.BlockInfo) err
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 
-	_, err = rc.Do("LPUSH", key, string(jsonData), "EX", string(conf.REDIS_MAXAGE))
+	_, err = rc.Do("SET", key, string(jsonData), "EX", conf.REDIS_MAXAGE)
 	return err
 }
 

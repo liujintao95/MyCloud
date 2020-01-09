@@ -8,6 +8,16 @@ import (
 	"net/http"
 )
 
+func ShowUser(g *gin.Context){
+	userInter, _ := g.Get("userInfo")
+	userMate := userInter.(models.UserInfo)
+
+	g.JSON(http.StatusOK, gin.H{
+		"errmsg": "ok",
+		"data":   userMate,
+	})
+}
+
 // 修改密码
 func PasswordChange(g *gin.Context) {
 	token, _ := g.Cookie("token")

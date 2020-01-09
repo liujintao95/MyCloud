@@ -21,7 +21,7 @@ func InitBlockUpload(g *gin.Context) {
 
 	fileSize, _ := strconv.ParseInt(sizeStr, 10, 64)
 
-	var resList [...]int
+	var resList []int
 
 	fileBlockMate := models.FileBlockInfo{
 		Hash:       hash,
@@ -51,7 +51,7 @@ func InitBlockUpload(g *gin.Context) {
 		}
 
 		blockList = append(blockList, blockMate)
-		resList[i] = 0
+		resList = append(resList, 0)
 	}
 
 	err = blockManager.Set(blockList)
@@ -72,9 +72,9 @@ func ResumeFromBreakPoint(g *gin.Context) {
 	blockList, err := blockManager.GetByUploadId(uploadId)
 	errCheck(g, err, "Resume: Failed to read block info", http.StatusInternalServerError)
 
-	var resList [...]int
-	for i, blockMate := range blockList {
-		resList[i] = blockMate.State
+	var resList []int
+	for _, blockMate := range blockList {
+		resList = append(resList, blockMate.State)
 	}
 
 	data := make(map[string]interface{})

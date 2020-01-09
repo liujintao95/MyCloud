@@ -35,7 +35,7 @@ func NewFileManager() IFile {
 
 func (f *FileManager) GetByHash(hash string) (models.FileInfo, error) {
 	fileMate, err := f.GetCache(hash)
-	if err == nil && fileMate.Path == "" {
+	if err != nil{
 		fileMate, err = f.GetSqlByHash(hash)
 		if err == nil {
 			err = f.SetCache(fileMate.Hash, fileMate)
@@ -73,7 +73,7 @@ func (f *FileManager) DeleteByHash(hash string) error {
 }
 
 func (f *FileManager) GetSqlByHash(hash string) (models.FileInfo, error) {
-	fileMate := new(models.FileInfo)
+	var fileMate models.FileInfo
 	getSql := `
 		SELECT fi_id, fi_name, fi_hash, fi_size,
 		fi_path, fi_state, fi_remark, fi_is_public,
@@ -84,12 +84,12 @@ func (f *FileManager) GetSqlByHash(hash string) (models.FileInfo, error) {
 	`
 	rows := utils.Conn.QueryRow(getSql, hash)
 	err := rows.Scan(
-		fileMate.Id, fileMate.Name, fileMate.Hash,
-		fileMate.Size, fileMate.Path, fileMate.State,
-		fileMate.Remark, fileMate.IsPublic,
-		fileMate.Recycled,
+		&fileMate.Id, &fileMate.Name, &fileMate.Hash,
+		&fileMate.Size, &fileMate.Path, &fileMate.State,
+		&fileMate.Remark, &fileMate.IsPublic,
+		&fileMate.Recycled,
 	)
-	return *fileMate, err
+	return fileMate, err
 }
 
 func (f *FileManager) SetSql(fileMate models.FileInfo) (int64, error) {
@@ -145,7 +145,7 @@ func (f *FileManager) GetCache(key string) (models.FileInfo, error) {
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 
-	jsonData, err := redis.Bytes(rc.Do("LRANGE", key, 0, -1))
+	jsonData, err := redis.Bytes(rc.Do("GET", key))
 	fileMate := models.FileInfo{}
 	if jsonData != nil {
 		_ = json.Unmarshal(jsonData, &fileMate)
@@ -159,7 +159,7 @@ func (f *FileManager) SetCache(key string, fileMate models.FileInfo) error {
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 
-	_, err = rc.Do("LPUSH", key, string(jsonData), "EX", string(conf.REDIS_MAXAGE))
+	_, err = rc.Do("SET", key, string(jsonData), "EX", conf.REDIS_MAXAGE)
 	return err
 }
 

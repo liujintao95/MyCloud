@@ -34,7 +34,7 @@ func NewFileBlockManager() IFileBlock {
 
 func (f FileBlockManager) GetByUploadId(uploadId string) (models.FileBlockInfo, error) {
 	fileBlockMate, err := f.GetCache(uploadId)
-	if err == nil && fileBlockMate.FileName == "" {
+	if err != nil{
 		fileBlockMate, err = f.GetSqlByUploadId(uploadId)
 		if err == nil {
 			err = f.SetCache("fb_"+uploadId, fileBlockMate)
@@ -74,7 +74,7 @@ func (f FileBlockManager) DeleteByUploadId(uploadId string) error {
 }
 
 func (f FileBlockManager) GetSqlByUploadId(uploadId string) (models.FileBlockInfo, error) {
-	fileBlockMate := new(models.FileBlockInfo)
+	var fileBlockMate models.FileBlockInfo
 
 	getSql := `
 		SELECT fbi_id, fbi_hash, fbi_file_name, 
@@ -90,15 +90,15 @@ func (f FileBlockManager) GetSqlByUploadId(uploadId string) (models.FileBlockInf
 	`
 	rows := utils.Conn.QueryRow(getSql, uploadId)
 	err := rows.Scan(
-		fileBlockMate.Id, fileBlockMate.Hash, fileBlockMate.FileName,
-		fileBlockMate.UploadID, fileBlockMate.FileSize, fileBlockMate.BlockSize,
-		fileBlockMate.BlockCount, fileBlockMate.State, fileBlockMate.Recycled,
-		fileBlockMate.UserInfo.Id, fileBlockMate.UserInfo.Name,
-		fileBlockMate.UserInfo.User, fileBlockMate.UserInfo.Pwd,
-		fileBlockMate.UserInfo.Level, fileBlockMate.UserInfo.Email,
-		fileBlockMate.UserInfo.Phone, fileBlockMate.UserInfo.Recycled,
+		&fileBlockMate.Id, &fileBlockMate.Hash, &fileBlockMate.FileName,
+		&fileBlockMate.UploadID, &fileBlockMate.FileSize, &fileBlockMate.BlockSize,
+		&fileBlockMate.BlockCount, &fileBlockMate.State, &fileBlockMate.Recycled,
+		&fileBlockMate.UserInfo.Id, &fileBlockMate.UserInfo.Name,
+		&fileBlockMate.UserInfo.User, &fileBlockMate.UserInfo.Pwd,
+		&fileBlockMate.UserInfo.Level, &fileBlockMate.UserInfo.Email,
+		&fileBlockMate.UserInfo.Phone, &fileBlockMate.UserInfo.Recycled,
 	)
-	return *fileBlockMate, err
+	return fileBlockMate, err
 }
 
 func (f FileBlockManager) SetSql(fileBlockMate models.FileBlockInfo) (int64, error) {
@@ -157,7 +157,7 @@ func (f FileBlockManager) GetCache(key string) (models.FileBlockInfo, error) {
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 
-	jsonData, err := redis.Bytes(rc.Do("LRANGE", key, 0, -1))
+	jsonData, err := redis.Bytes(rc.Do("GET", key))
 	fileBlockMate := models.FileBlockInfo{}
 	if jsonData != nil {
 		_ = json.Unmarshal(jsonData, &fileBlockMate)
@@ -171,7 +171,7 @@ func (f FileBlockManager) SetCache(key string, fileBlockMate models.FileBlockInf
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 
-	_, err = rc.Do("LPUSH", key, string(jsonData), "EX", string(conf.REDIS_MAXAGE))
+	_, err = rc.Do("SET", key, string(jsonData), "EX", conf.REDIS_MAXAGE)
 	return err
 }
 
