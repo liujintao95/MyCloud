@@ -35,7 +35,7 @@ func NewUserManager() IUser {
 
 func (u *UserManager) GetByUser(user string) (models.UserInfo, error) {
 	userMate, err := u.GetCache(user)
-	if err != nil{
+	if err != nil {
 		userMate, err = u.GetSqlByUser(user)
 		if err == nil {
 			err = u.SetCache(user, userMate)
@@ -71,8 +71,9 @@ func (u *UserManager) DeleteByUser(string) error {
 func (u *UserManager) GetSqlByUser(user string) (models.UserInfo, error) {
 	var userMate models.UserInfo
 	getSql := `
-		SELECT ui_id, ui_name, ui_user, ui_pwd,
-		ui_level, ui_email,ui_phone, ui_recycled
+		SELECT ui_id, ui_name, ui_user, ui_pwd, 
+		ui_pwd_strength, ui_level, ui_email,
+		ui_phone, ui_recycled
 		FROM user_info 
 		WHERE ui_user = ?
 		AND ui_recycled = 'N'
@@ -80,7 +81,8 @@ func (u *UserManager) GetSqlByUser(user string) (models.UserInfo, error) {
 	rows := utils.Conn.QueryRow(getSql, user)
 	err := rows.Scan(
 		&userMate.Id, &userMate.Name, &userMate.User,
-		&userMate.Pwd, &userMate.Level, &userMate.Email,
+		&userMate.Pwd, &userMate.PwdStrength,
+		&userMate.Level, &userMate.Email,
 		&userMate.Phone, &userMate.Recycled,
 	)
 	return userMate, err
@@ -89,14 +91,14 @@ func (u *UserManager) GetSqlByUser(user string) (models.UserInfo, error) {
 func (u *UserManager) SetSql(userMate models.UserInfo) (int64, error) {
 	insertSql := `
 		INSERT INTO user_info(
-			ui_user, ui_name, ui_pwd,
+			ui_user, ui_name, ui_pwd, ui_pwd_strength,
 			ui_level, ui_email, ui_phone
 		) 
-		VALUES (?,?,?,?,?,?)
+		VALUES (?,?,?,?,?,?,?)
 	`
 	res, err := utils.Conn.Exec(
 		insertSql,
-		userMate.User, userMate.User, userMate.Pwd,
+		userMate.User, userMate.User, userMate.Pwd, userMate.PwdStrength,
 		userMate.Level, userMate.Email, userMate.Phone,
 	)
 	if err != nil {
@@ -112,12 +114,12 @@ func (u *UserManager) SetSql(userMate models.UserInfo) (int64, error) {
 func (u *UserManager) UpdateSql(userMate models.UserInfo) error {
 	updateSql := `
 		UPDATE user_info 
-		SET ui_name=?, ui_pwd=?, ui_level=?, ui_email=?, ui_phone=?
+		SET ui_name=?, ui_pwd=?, ui_pwd_strength=?, ui_level=?, ui_email=?, ui_phone=?
 		WHERE ui_user=?
 	`
 	_, err := utils.Conn.Exec(
 		updateSql,
-		userMate.Name, userMate.Pwd, userMate.Level,
+		userMate.Name, userMate.Pwd, userMate.PwdStrength, userMate.Level,
 		userMate.Email, userMate.Phone, userMate.User,
 	)
 	return err

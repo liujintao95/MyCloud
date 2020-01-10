@@ -7,7 +7,7 @@ import (
 )
 
 func UrlMap(router *gin.Engine) {
-	router.POST("/sign", api.Sign)
+	router.GET("/sign", api.Sign)
 	router.POST("/register", api.Register)
 	router.GET("/logout", api.Logout)
 
@@ -15,6 +15,8 @@ func UrlMap(router *gin.Engine) {
 	authorized.GET("/user/show", api.ShowUser)
 	authorized.POST("/user/change/password", api.PasswordChange)
 	authorized.POST("/user/change/username", api.UsernameChange)
+	authorized.POST("/user/change/phone", api.PhoneChange)
+	authorized.POST("/user/change/email", api.EmailChange)
 
 	authorized.POST("/file/init", api.InitFile)
 	authorized.POST("/file/upload", api.Upload)

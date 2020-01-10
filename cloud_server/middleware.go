@@ -5,16 +5,15 @@ import (
 	"MyCloud/conf"
 	"MyCloud/utils"
 	"encoding/json"
-	"net/http"
-
 	"github.com/garyburd/redigo/redis"
 	"github.com/gin-gonic/gin"
+	"net/http"
 )
 
 var errCheck = utils.ErrCheck
 
 func LoginRequired(g *gin.Context) {
-	token, _ := g.Cookie("token")
+	token := g.GetHeader("Authorization")
 
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
@@ -35,7 +34,7 @@ func LoginRequired(g *gin.Context) {
 	}
 
 	// 重置超时时间
-	_, err = rc.Do("LPUSH", token, string(jsonData), "EX", string(conf.REDIS_MAXAGE))
+	_, err = rc.Do("SET", "token_"+token, string(jsonData), "EX", conf.REDIS_MAXAGE)
 	errCheck(g, err, "Failed to reset timeout", http.StatusInternalServerError)
 
 	g.Set("userInfo", userMate)

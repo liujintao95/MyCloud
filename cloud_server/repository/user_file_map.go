@@ -47,7 +47,7 @@ func (u UserFileManager) GetByFile(fileHash string) ([]models.UserFileMap, error
 
 func (u UserFileManager) GetByUserFile(user string, fileHash string) (models.UserFileMap, error) {
 	userFileMate, err := u.GetCache(user + fileHash)
-	if err != nil{
+	if err != nil {
 		userFileMate, err = u.GetSqlByUserFile(user, fileHash)
 		if err == nil {
 			err = u.SetCache(user+fileHash, userFileMate)
@@ -95,7 +95,7 @@ func (u UserFileManager) GetSqlByFile(fileHash string) ([]models.UserFileMap, er
 	getSql := `
 		SELECT uf_id, uf_file_name, uf_star,
 		uf_is_public, uf_remark, uf_state, uf_recycled,
-		ui_id, ui_name, ui_user, ui_pwd,
+		ui_id, ui_name, ui_user, ui_pwd, ui_pwd_strength,
 		ui_level, ui_email, ui_phone, ui_recycled, 
 		fi_id, fi_name, fi_hash, fi_size,
 		fi_path, fi_remark, fi_is_public, fi_recycled
@@ -121,13 +121,13 @@ func (u UserFileManager) GetSqlByFile(fileHash string) ([]models.UserFileMap, er
 			&userFileMate.IsPublic, &userFileMate.Remark, &userFileMate.State,
 			&userFileMate.Recycled, &userFileMate.UserInfo.Id,
 			&userFileMate.UserInfo.Name, &userFileMate.UserInfo.User,
-			&userFileMate.UserInfo.Pwd, &userFileMate.UserInfo.Level,
-			&userFileMate.UserInfo.Email, &userFileMate.UserInfo.Phone,
-			&userFileMate.UserInfo.Recycled, &userFileMate.FileInfo.Id,
-			&userFileMate.FileInfo.Name, &userFileMate.FileInfo.Hash,
-			&userFileMate.FileInfo.Size, &userFileMate.FileInfo.Path,
-			&userFileMate.FileInfo.Remark, &userFileMate.FileInfo.IsPublic,
-			&userFileMate.FileInfo.Recycled,
+			&userFileMate.UserInfo.Pwd, &userFileMate.UserInfo.PwdStrength,
+			&userFileMate.UserInfo.Level, &userFileMate.UserInfo.Email,
+			&userFileMate.UserInfo.Phone, &userFileMate.UserInfo.Recycled,
+			&userFileMate.FileInfo.Id, &userFileMate.FileInfo.Name,
+			&userFileMate.FileInfo.Hash, &userFileMate.FileInfo.Size,
+			&userFileMate.FileInfo.Path, &userFileMate.FileInfo.Remark,
+			&userFileMate.FileInfo.IsPublic, &userFileMate.FileInfo.Recycled,
 		)
 		mapList = append(mapList, userFileMate)
 	}
@@ -139,7 +139,7 @@ func (u UserFileManager) GetSqlByUserFile(user string, fileHash string) (models.
 	getSql := `
 		SELECT uf_id, uf_file_name, uf_star,
 		uf_is_public, uf_remark, uf_state, uf_recycled,
-		ui_id, ui_name, ui_user, ui_pwd,
+		ui_id, ui_name, ui_user, ui_pwd, ui_pwd_strength,
 		ui_level, ui_email, ui_phone, ui_recycled, 
 		fi_id, fi_name, fi_hash, fi_size,
 		fi_path, fi_remark, fi_is_public, fi_recycled
@@ -160,13 +160,13 @@ func (u UserFileManager) GetSqlByUserFile(user string, fileHash string) (models.
 		&userFileMate.IsPublic, &userFileMate.Remark, &userFileMate.State,
 		&userFileMate.Recycled, &userFileMate.UserInfo.Id,
 		&userFileMate.UserInfo.Name, &userFileMate.UserInfo.User,
-		&userFileMate.UserInfo.Pwd, &userFileMate.UserInfo.Level,
-		&userFileMate.UserInfo.Email, &userFileMate.UserInfo.Phone,
-		&userFileMate.UserInfo.Recycled, &userFileMate.FileInfo.Id,
-		&userFileMate.FileInfo.Name, &userFileMate.FileInfo.Hash,
-		&userFileMate.FileInfo.Size, &userFileMate.FileInfo.Path,
-		&userFileMate.FileInfo.Remark, &userFileMate.FileInfo.IsPublic,
-		&userFileMate.FileInfo.Recycled,
+		&userFileMate.UserInfo.Pwd, &userFileMate.UserInfo.PwdStrength,
+		&userFileMate.UserInfo.Level, &userFileMate.UserInfo.Email,
+		&userFileMate.UserInfo.Phone, &userFileMate.UserInfo.Recycled,
+		&userFileMate.FileInfo.Id, &userFileMate.FileInfo.Name,
+		&userFileMate.FileInfo.Hash, &userFileMate.FileInfo.Size,
+		&userFileMate.FileInfo.Path, &userFileMate.FileInfo.Remark,
+		&userFileMate.FileInfo.IsPublic, &userFileMate.FileInfo.Recycled,
 	)
 	return userFileMate, err
 }
