@@ -25,6 +25,7 @@ func UrlMap(router *gin.Engine) {
 	authorized.GET("/file/public_download", api.PublicDownload)
 	authorized.POST("/file/update", api.UpdateFileName)
 	authorized.POST("/file/delete", api.Delete)
+	authorized.GET("/file/upload_show", api.UploadShow)
 
 	authorized.POST("/block/init", api.InitBlockUpload)
 	authorized.GET("/block/resume", api.ResumeFromBreakPoint)

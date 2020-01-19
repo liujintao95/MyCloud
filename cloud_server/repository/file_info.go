@@ -35,7 +35,7 @@ func NewFileManager() IFile {
 
 func (f *FileManager) GetByHash(hash string) (models.FileInfo, error) {
 	fileMate, err := f.GetCache(hash)
-	if err != nil{
+	if err != nil {
 		fileMate, err = f.GetSqlByHash(hash)
 		if err == nil {
 			err = f.SetCache(fileMate.Hash, fileMate)
@@ -80,7 +80,7 @@ func (f *FileManager) GetSqlByHash(hash string) (models.FileInfo, error) {
 		fi_recycled
 		FROM file_info 
 		WHERE fi_hash = ?
-		AND fi_recycled == 'N'
+		AND fi_recycled = 'N'
 	`
 	rows := utils.Conn.QueryRow(getSql, hash)
 	err := rows.Scan(

@@ -11,8 +11,8 @@ import (
 	"time"
 )
 
+// 初始化上传文件
 func InitFile(g *gin.Context) {
-	remark := g.PostForm("remark")
 	fileName := g.PostForm("fileName")
 	sizeStr := g.PostForm("size")
 	hash := g.PostForm("hash")
@@ -32,10 +32,6 @@ func InitFile(g *gin.Context) {
 		UserInfo: userMate,
 		FileInfo: fileMate,
 		FileName: fileName,
-	}
-	if remark != "" {
-		fileMate.Remark = sql.NullString{String: remark, Valid: true}
-		userFileMate.Remark = sql.NullString{String: remark, Valid: true}
 	}
 
 	lastId, err := fileManager.Set(fileMate)
@@ -82,6 +78,7 @@ func Upload(g *gin.Context) {
 	})
 }
 
+// 秒传
 func RapidUpload(g *gin.Context) {
 	hash := g.PostForm("hash")
 	userInter, _ := g.Get("userInfo")
@@ -180,6 +177,7 @@ func PublicDownload(g *gin.Context) {
 	g.File(fileMate.Path)
 }
 
+// 更新文件名称
 func UpdateFileName(g *gin.Context) {
 	fileHash := g.PostForm("fileHash")
 	newFileName := g.PostForm("newFileName")
@@ -207,6 +205,7 @@ func UpdateFileName(g *gin.Context) {
 	})
 }
 
+// 删除文件
 func Delete(g *gin.Context) {
 	fileHash := g.PostForm("fileHash")
 	userInter, _ := g.Get("userInfo")
@@ -236,5 +235,75 @@ func Delete(g *gin.Context) {
 	g.JSON(http.StatusOK, gin.H{
 		"errmsg": "ok",
 		"data":   nil,
+	})
+}
+
+// 显示上传列表
+func UploadShow(g *gin.Context) {
+	userInter, _ := g.Get("userInfo")
+	userMate := userInter.(models.UserInfo)
+
+	userFileList, err := userFileManager.GetByUser(userMate.User)
+	if err == sql.ErrNoRows {
+		g.JSON(http.StatusOK, gin.H{
+			"errmsg": "UploadShow:No files were found",
+			"data":   nil,
+		})
+		return
+	}
+	errCheck(g, err, "UploadShow:Failed to read user_file_map", http.StatusInternalServerError)
+
+	fileBlockList, err := fileBlockManager.GetByUser(userMate.User)
+	if err != nil && err != sql.ErrNoRows {
+		errCheck(g, err, "UploadShow:Failed to read file_block_info", http.StatusInternalServerError)
+	}
+
+	var hashDict map[string]models.FileBlockInfo
+	for _, fileBlockMate := range fileBlockList {
+		hashDict[fileBlockMate.Hash] = fileBlockMate
+	}
+
+	var resList []map[string]interface{}
+	for _, userFileMate := range userFileList {
+		resDict := make(map[string]interface{})
+		resDict["name"] = userFileMate.FileName
+		resDict["hash"] = userFileMate.FileInfo.Hash
+		resDict["progress"] = 0
+		resDict["state"] = userFileMate.FileInfo.State
+
+		fileSize := float64(userFileMate.FileInfo.Size)
+		unitList := []string{"Bytes", "KB", "MB", "GB", "TB"}
+		index := 0
+		for ; index < len(unitList); index++ {
+			if fileSize > 1024 {
+				fileSize = float64(fileSize) / float64(1024)
+			} else {
+				break
+			}
+		}
+		resDict["size"] = fmt.Sprintf("%.2f", fileSize) + unitList[index]
+
+		if uploadId := hashDict[userFileMate.FileInfo.Hash].UploadID; uploadId != "" {
+			resDict["uploadId"] = uploadId
+			blockMateList, err := blockManager.GetByUploadId(uploadId)
+			errCheck(g, err, "blockUpload:Failed to get block info", http.StatusInternalServerError)
+
+			amount := 0
+			finishAmount := 0
+			for _, blockMate := range blockMateList {
+				amount++
+				if blockMate.State == 1 {
+					finishAmount++
+				}
+			}
+			resDict["progress"] = fmt.Sprintf("%.2f", float64(finishAmount)/float64(amount))
+		}
+
+		resList = append(resList, resDict)
+	}
+
+	g.JSON(http.StatusOK, gin.H{
+		"errmsg": "ok",
+		"data":   resList,
 	})
 }

@@ -10,17 +10,20 @@ import (
 
 type IFileBlock interface {
 	GetByUploadId(string) (models.FileBlockInfo, error)
+	GetByUser(string) ([]models.FileBlockInfo, error)
 	Set(models.FileBlockInfo) (int64, error)
 	Update(models.FileBlockInfo) error
 	DeleteByUploadId(string) error
 
 	GetSqlByUploadId(string) (models.FileBlockInfo, error)
+	GetSqlByUser(string) ([]models.FileBlockInfo, error)
 	SetSql(models.FileBlockInfo) (int64, error)
 	UpdateSql(models.FileBlockInfo) error
 	DelSqlByUploadId(string) error
 
 	GetCache(string) (models.FileBlockInfo, error)
-	SetCache(string, models.FileBlockInfo) error
+	GetCacheList(string) ([]models.FileBlockInfo, error)
+	SetCache(string, interface{}) error
 	DelCache(string) error
 }
 
@@ -34,13 +37,24 @@ func NewFileBlockManager() IFileBlock {
 
 func (f FileBlockManager) GetByUploadId(uploadId string) (models.FileBlockInfo, error) {
 	fileBlockMate, err := f.GetCache(uploadId)
-	if err != nil{
+	if err != nil {
 		fileBlockMate, err = f.GetSqlByUploadId(uploadId)
 		if err == nil {
 			err = f.SetCache("fb_"+uploadId, fileBlockMate)
 		}
 	}
 	return fileBlockMate, err
+}
+
+func (f FileBlockManager) GetByUser(user string) ([]models.FileBlockInfo, error) {
+	fileBlockList, err := f.GetCacheList(user)
+	if err != nil {
+		fileBlockList, err = f.GetSqlByUser(user)
+		if err == nil {
+			err = f.SetCache("fb_"+user, fileBlockList)
+		}
+	}
+	return fileBlockList, err
 }
 
 func (f FileBlockManager) Set(fileBlockMate models.FileBlockInfo) (int64, error) {
@@ -86,7 +100,7 @@ func (f FileBlockManager) GetSqlByUploadId(uploadId string) (models.FileBlockInf
 		INNER JOIN user_info
 		ON fbi_ui_id = ui_id
 		WHERE fbi_upload_id = ?
-		AND fbi_recycled == 'N'
+		AND fbi_recycled = 'N'
 	`
 	rows := utils.Conn.QueryRow(getSql, uploadId)
 	err := rows.Scan(
@@ -99,6 +113,41 @@ func (f FileBlockManager) GetSqlByUploadId(uploadId string) (models.FileBlockInf
 		&fileBlockMate.UserInfo.Phone, &fileBlockMate.UserInfo.Recycled,
 	)
 	return fileBlockMate, err
+}
+
+func (f FileBlockManager) GetSqlByUser(user string) ([]models.FileBlockInfo, error) {
+	var fileBlockList []models.FileBlockInfo
+
+	getSql := `
+		SELECT fbi_id, fbi_hash, fbi_file_name, 
+		fbi_upload_id, fbi_file_size, fbi_block_size, 
+		fbi_block_count, fbi_state, fbi_recycled,
+		ui_id, ui_name, ui_user, ui_pwd, ui_level,
+		ui_email, ui_phone, ui_recycled
+		FROM file_block_info
+		INNER JOIN user_info
+		ON fbi_ui_id = ui_id
+		WHERE fbi_ui_id = ?
+		AND fbi_recycled = 'N'
+	`
+	rows, err := utils.Conn.Query(getSql, user)
+	if err != nil {
+		return fileBlockList, err
+	}
+	for rows.Next() {
+		var fileBlockMate models.FileBlockInfo
+		_ = rows.Scan(
+			&fileBlockMate.Id, &fileBlockMate.Hash, &fileBlockMate.FileName,
+			&fileBlockMate.UploadID, &fileBlockMate.FileSize, &fileBlockMate.BlockSize,
+			&fileBlockMate.BlockCount, &fileBlockMate.State, &fileBlockMate.Recycled,
+			&fileBlockMate.UserInfo.Id, &fileBlockMate.UserInfo.Name,
+			&fileBlockMate.UserInfo.User, &fileBlockMate.UserInfo.Pwd,
+			&fileBlockMate.UserInfo.Level, &fileBlockMate.UserInfo.Email,
+			&fileBlockMate.UserInfo.Phone, &fileBlockMate.UserInfo.Recycled,
+		)
+		fileBlockList = append(fileBlockList, fileBlockMate)
+	}
+	return fileBlockList, err
 }
 
 func (f FileBlockManager) SetSql(fileBlockMate models.FileBlockInfo) (int64, error) {
@@ -165,7 +214,19 @@ func (f FileBlockManager) GetCache(key string) (models.FileBlockInfo, error) {
 	return fileBlockMate, err
 }
 
-func (f FileBlockManager) SetCache(key string, fileBlockMate models.FileBlockInfo) error {
+func (f FileBlockManager) GetCacheList(key string) ([]models.FileBlockInfo, error) {
+	rc := utils.RedisPool.Get()
+	defer rc.Close()
+
+	jsonData, err := redis.Bytes(rc.Do("GET", key))
+	fileBlockList := []models.FileBlockInfo{}
+	if jsonData != nil {
+		_ = json.Unmarshal(jsonData, &fileBlockList)
+	}
+	return fileBlockList, err
+}
+
+func (f FileBlockManager) SetCache(key string, fileBlockMate interface{}) error {
 	jsonData, err := json.Marshal(fileBlockMate)
 
 	rc := utils.RedisPool.Get()

@@ -39,10 +39,10 @@ func (d DirManager) GetByFid(fid int64) ([]models.FileDirectory, error) {
 	fidStr := strconv.FormatInt(fid, 64)
 
 	dirList, err := d.GetCache("dirFid_" + fidStr)
-	if err != nil{
+	if err != nil {
 		dirList, err = d.GetSqlByFid(fid)
 		if err == nil {
-			err = d.SetCache("dirFid_" + fidStr, dirList)
+			err = d.SetCache("dirFid_"+fidStr, dirList)
 		}
 	}
 	return dirList, err
@@ -53,7 +53,7 @@ func (d DirManager) Set(dirList []models.FileDirectory) error {
 	if err == nil {
 		dirList, err = d.GetSqlByFid(dirList[0].Fid)
 
-		fidStr := strconv.FormatInt(dirList[0].Fid,64)
+		fidStr := strconv.FormatInt(dirList[0].Fid, 64)
 		if err == nil {
 			err = d.SetCache("dirFid_"+fidStr, dirList)
 		}
@@ -68,7 +68,7 @@ func (d DirManager) Update(dirMate models.FileDirectory) error {
 	}
 	dirList, err := d.GetSqlByFid(dirMate.Fid)
 	if err == nil {
-		fidStr := strconv.FormatInt(dirMate.Fid,64)
+		fidStr := strconv.FormatInt(dirMate.Fid, 64)
 		err = d.SetCache("dirFid_"+fidStr, dirList)
 	}
 	return err
@@ -80,14 +80,14 @@ func (d DirManager) DeleteById(id int64) error {
 		return err
 	}
 
-	idStr := strconv.FormatInt(id,64)
+	idStr := strconv.FormatInt(id, 64)
 	err = d.DelCache("dirFid_" + idStr)
 
 	dirMate, err := d.GetSqlById(id)
 	if err != nil {
 		return err
 	}
-	fidStr := strconv.FormatInt(dirMate.Fid,64)
+	fidStr := strconv.FormatInt(dirMate.Fid, 64)
 	err = d.DelCache("dirFid_" + fidStr)
 
 	return err
@@ -124,7 +124,7 @@ func (d DirManager) GetSqlByFid(fid int64) ([]models.FileDirectory, error) {
 		INNER JOIN file_info
 		ON uf_fi_id = fi_id
 		WHERE fd_fid = ?
-		AND fd_recycled == 'N'
+		AND fd_recycled = 'N'
 	`
 	rows, err := utils.Conn.Query(getSql, fid)
 	if err != nil {
@@ -181,7 +181,7 @@ func (d DirManager) GetSqlById(id int64) (models.FileDirectory, error) {
 		INNER JOIN file_info
 		ON uf_fi_id = fi_id
 		WHERE fd_id = ?
-		AND fd_recycled == 'N'
+		AND fd_recycled = 'N'
 	`
 	rows := utils.Conn.QueryRow(getSql, id)
 	err := rows.Scan(

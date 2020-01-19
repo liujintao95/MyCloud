@@ -25,7 +25,8 @@ type IUserFileMap interface {
 	DelSqlByUserFile(string, string) error
 
 	GetCache(string) (models.UserFileMap, error)
-	SetCache(string, models.UserFileMap) error
+	GetCacheList(string) ([]models.UserFileMap, error)
+	SetCache(string, interface{}) error
 	DelCache(string) error
 }
 
@@ -38,11 +39,25 @@ func NewUserFileManager() IUserFileMap {
 }
 
 func (u UserFileManager) GetByUser(user string) ([]models.UserFileMap, error) {
-	panic("implement me")
+	userFileList, err := u.GetCacheList("UserFileList_" + user)
+	if err != nil {
+		userFileList, err = u.GetSqlByUser(user)
+		if err == nil {
+			err = u.SetCache("UserFileList_"+user, userFileList)
+		}
+	}
+	return userFileList, err
 }
 
 func (u UserFileManager) GetByFile(fileHash string) ([]models.UserFileMap, error) {
-	panic("implement me")
+	userFileList, err := u.GetCacheList("UserFileList_" + fileHash)
+	if err != nil {
+		userFileList, err = u.GetSqlByFile(fileHash)
+		if err == nil {
+			err = u.SetCache("UserFileList_"+fileHash, userFileList)
+		}
+	}
+	return userFileList, err
 }
 
 func (u UserFileManager) GetByUserFile(user string, fileHash string) (models.UserFileMap, error) {
@@ -85,8 +100,50 @@ func (u UserFileManager) DeleteByUserFile(user string, fileHash string) error {
 	return err
 }
 
-func (u UserFileManager) GetSqlByUser(string) ([]models.UserFileMap, error) {
-	panic("implement me")
+func (u UserFileManager) GetSqlByUser(user string) ([]models.UserFileMap, error) {
+	var mapList []models.UserFileMap
+
+	getSql := `
+		SELECT uf_id, uf_file_name, uf_star,
+		uf_is_public, uf_remark, uf_state, uf_recycled,
+		ui_id, ui_name, ui_user, ui_pwd, ui_pwd_strength,
+		ui_level, ui_email, ui_phone, ui_recycled, 
+		fi_id, fi_name, fi_hash, fi_size, fi_state,
+		fi_path, fi_remark, fi_is_public, fi_recycled
+		FROM user_file_map
+		INNER JOIN user_info
+		ON uf_ui_id = ui_id
+		INNER JOIN file_info
+		ON uf_fi_id = fi_id
+		WHERE ui_user = ?
+		AND uf_recycled = 'N'
+		AND ui_recycled = 'N'
+		AND fi_recycled = 'N'
+	`
+	rows, err := utils.Conn.Query(getSql, user)
+	if err != nil {
+		return mapList, err
+	}
+
+	for rows.Next() {
+		var userFileMate models.UserFileMap
+		_ = rows.Scan(
+			&userFileMate.Id, &userFileMate.FileName, &userFileMate.Star,
+			&userFileMate.IsPublic, &userFileMate.Remark, &userFileMate.State,
+			&userFileMate.Recycled, &userFileMate.UserInfo.Id,
+			&userFileMate.UserInfo.Name, &userFileMate.UserInfo.User,
+			&userFileMate.UserInfo.Pwd, &userFileMate.UserInfo.PwdStrength,
+			&userFileMate.UserInfo.Level, &userFileMate.UserInfo.Email,
+			&userFileMate.UserInfo.Phone, &userFileMate.UserInfo.Recycled,
+			&userFileMate.FileInfo.Id, &userFileMate.FileInfo.Name,
+			&userFileMate.FileInfo.Hash, &userFileMate.FileInfo.Size,
+			&userFileMate.FileInfo.State, &userFileMate.FileInfo.Path,
+			&userFileMate.FileInfo.Remark, &userFileMate.FileInfo.IsPublic,
+			&userFileMate.FileInfo.Recycled,
+		)
+		mapList = append(mapList, userFileMate)
+	}
+	return mapList, err
 }
 
 func (u UserFileManager) GetSqlByFile(fileHash string) ([]models.UserFileMap, error) {
@@ -97,7 +154,7 @@ func (u UserFileManager) GetSqlByFile(fileHash string) ([]models.UserFileMap, er
 		uf_is_public, uf_remark, uf_state, uf_recycled,
 		ui_id, ui_name, ui_user, ui_pwd, ui_pwd_strength,
 		ui_level, ui_email, ui_phone, ui_recycled, 
-		fi_id, fi_name, fi_hash, fi_size,
+		fi_id, fi_name, fi_hash, fi_size, fi_state,
 		fi_path, fi_remark, fi_is_public, fi_recycled
 		FROM user_file_map
 		INNER JOIN user_info
@@ -105,9 +162,9 @@ func (u UserFileManager) GetSqlByFile(fileHash string) ([]models.UserFileMap, er
 		INNER JOIN file_info
 		ON uf_fi_id = fi_id
 		WHERE fi_hash = ?
-		AND uf_recycled == 'N'
-		AND ui_recycled == 'N'
-		AND fi_recycled == 'N'
+		AND uf_recycled = 'N'
+		AND ui_recycled = 'N'
+		AND fi_recycled = 'N'
 	`
 	rows, err := utils.Conn.Query(getSql, fileHash)
 	if err != nil {
@@ -126,8 +183,9 @@ func (u UserFileManager) GetSqlByFile(fileHash string) ([]models.UserFileMap, er
 			&userFileMate.UserInfo.Phone, &userFileMate.UserInfo.Recycled,
 			&userFileMate.FileInfo.Id, &userFileMate.FileInfo.Name,
 			&userFileMate.FileInfo.Hash, &userFileMate.FileInfo.Size,
-			&userFileMate.FileInfo.Path, &userFileMate.FileInfo.Remark,
-			&userFileMate.FileInfo.IsPublic, &userFileMate.FileInfo.Recycled,
+			&userFileMate.FileInfo.State, &userFileMate.FileInfo.Path,
+			&userFileMate.FileInfo.Remark, &userFileMate.FileInfo.IsPublic,
+			&userFileMate.FileInfo.Recycled,
 		)
 		mapList = append(mapList, userFileMate)
 	}
@@ -141,7 +199,7 @@ func (u UserFileManager) GetSqlByUserFile(user string, fileHash string) (models.
 		uf_is_public, uf_remark, uf_state, uf_recycled,
 		ui_id, ui_name, ui_user, ui_pwd, ui_pwd_strength,
 		ui_level, ui_email, ui_phone, ui_recycled, 
-		fi_id, fi_name, fi_hash, fi_size,
+		fi_id, fi_name, fi_hash, fi_size, fi_state,
 		fi_path, fi_remark, fi_is_public, fi_recycled
 		FROM user_file_map
 		INNER JOIN user_info
@@ -150,9 +208,9 @@ func (u UserFileManager) GetSqlByUserFile(user string, fileHash string) (models.
 		ON uf_fi_id = fi_id
 		WHERE ui_user = ?
 		AND fi_hash = ?
-		AND uf_recycled == 'N'
-		AND ui_recycled == 'N'
-		AND fi_recycled == 'N'
+		AND uf_recycled = 'N'
+		AND ui_recycled = 'N'
+		AND fi_recycled = 'N'
 	`
 	rows := utils.Conn.QueryRow(getSql, user, fileHash)
 	err := rows.Scan(
@@ -165,8 +223,9 @@ func (u UserFileManager) GetSqlByUserFile(user string, fileHash string) (models.
 		&userFileMate.UserInfo.Phone, &userFileMate.UserInfo.Recycled,
 		&userFileMate.FileInfo.Id, &userFileMate.FileInfo.Name,
 		&userFileMate.FileInfo.Hash, &userFileMate.FileInfo.Size,
-		&userFileMate.FileInfo.Path, &userFileMate.FileInfo.Remark,
-		&userFileMate.FileInfo.IsPublic, &userFileMate.FileInfo.Recycled,
+		&userFileMate.FileInfo.State, &userFileMate.FileInfo.Path,
+		&userFileMate.FileInfo.Remark, &userFileMate.FileInfo.IsPublic,
+		&userFileMate.FileInfo.Recycled,
 	)
 	return userFileMate, err
 }
@@ -236,7 +295,19 @@ func (u UserFileManager) GetCache(key string) (models.UserFileMap, error) {
 	return userFileMate, err
 }
 
-func (u UserFileManager) SetCache(key string, userFileMate models.UserFileMap) error {
+func (u UserFileManager) GetCacheList(key string) ([]models.UserFileMap, error) {
+	rc := utils.RedisPool.Get()
+	defer rc.Close()
+
+	jsonData, err := redis.Bytes(rc.Do("GET", key))
+	userFileList := []models.UserFileMap{}
+	if jsonData != nil {
+		_ = json.Unmarshal(jsonData, &userFileList)
+	}
+	return userFileList, err
+}
+
+func (u UserFileManager) SetCache(key string, userFileMate interface{}) error {
 	jsonData, err := json.Marshal(userFileMate)
 
 	rc := utils.RedisPool.Get()

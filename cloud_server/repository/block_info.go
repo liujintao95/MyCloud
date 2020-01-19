@@ -37,7 +37,7 @@ func NewBlockManager() IBlock {
 func (b BlockManager) GetByUploadIdIndex(uploadID string, index int) (models.BlockInfo, error) {
 	blockList, err := b.GetCache("bl_" + uploadID)
 
-	if err != nil{
+	if err != nil {
 		for _, blockMate := range blockList {
 			if blockMate.Index == index {
 				return blockMate, err
@@ -50,7 +50,7 @@ func (b BlockManager) GetByUploadIdIndex(uploadID string, index int) (models.Blo
 
 func (b BlockManager) GetByUploadId(uploadID string) ([]models.BlockInfo, error) {
 	blockList, err := b.GetCache("bl_" + uploadID)
-	if err != nil{
+	if err != nil {
 		blockList, err = b.GetByUploadId(uploadID)
 		if err == nil {
 			err = b.SetCache("bl_"+uploadID, blockList)
@@ -108,7 +108,7 @@ func (b BlockManager) GetSqlByUploadIdIndex(uploadId string, index int) (models.
 		ON fbi_ui_id = ui_id
 		WHERE bi_upload_id = ?
 		AND bi_index = ?
-		AND bi_recycled == 'N'
+		AND bi_recycled = 'N'
 	`
 	rows := utils.Conn.QueryRow(getSql, uploadId, index)
 	err := rows.Scan(
@@ -146,7 +146,7 @@ func (b BlockManager) GetSqlByUploadId(uploadId string) ([]models.BlockInfo, err
 		INNER JOIN user_info
 		ON fbi_ui_id = ui_id
 		WHERE bi_upload_id = ?
-		AND bi_recycled == 'N'
+		AND bi_recycled = 'N'
 	`
 	rows, err := utils.Conn.Query(getSql, uploadId)
 	if err != nil {
