@@ -54,8 +54,8 @@ func SaveDir(g *gin.Context) {
 
 		valList := strings.Split(val, "|")
 		curDir := valList[0]
-		fileName := valList[2]
-		fileHash := valList[3]
+		fileName := valList[1]
+		fileHash := valList[2]
 
 		idMap[curDir+fileName+"/"] = maxId
 

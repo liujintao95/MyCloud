@@ -35,7 +35,7 @@ func UrlMap(router *gin.Engine) {
 	authorized.POST("/block/remove", api.RemoveBlock)
 
 	authorized.GET("/dir/show", api.ShowDir)
-	authorized.GET("/dir/save", api.SaveDir)
-	authorized.GET("/dir/change", api.ChangeDir)
-	authorized.GET("/dir/remove", api.RemoveDir)
+	authorized.POST("/dir/save", api.SaveDir)
+	authorized.POST("/dir/change", api.ChangeDir)
+	authorized.POST("/dir/remove", api.RemoveDir)
 }

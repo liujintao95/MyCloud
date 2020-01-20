@@ -36,7 +36,7 @@ func InitFile(g *gin.Context) {
 
 	lastId, err := fileManager.Set(fileMate)
 	errCheck(g, err, "InitFile:Failed to set file information", http.StatusInternalServerError)
-	fileMate.Id = lastId
+	userFileMate.FileInfo.Id = lastId
 
 	_, err = userFileManager.Set(userFileMate)
 	errCheck(g, err, "InitFile:Failed to set user_file_map", http.StatusInternalServerError)
@@ -85,7 +85,7 @@ func RapidUpload(g *gin.Context) {
 	userMate := userInter.(models.UserInfo)
 
 	// 判断用户是否已经关联该文件
-	_, err := userFileManager.GetSqlByUserFile(userMate.User, hash)
+	_, err := userFileManager.GetByUserFile(userMate.User, hash)
 	if err != sql.ErrNoRows {
 		g.JSON(http.StatusOK, gin.H{
 			"errmsg": "RapidUpload:The file already exist",
@@ -107,13 +107,13 @@ func RapidUpload(g *gin.Context) {
 		errCheck(g, err, "RapidUpload:Failed to set user_file_map", http.StatusInternalServerError)
 
 		g.JSON(http.StatusOK, gin.H{
-			"errmsg": "OK",
+			"errmsg": "ok",
 			"data":   true,
 		})
 	}
 
 	g.JSON(http.StatusOK, gin.H{
-		"errmsg": "OK",
+		"errmsg": "ok",
 		"data":   false,
 	})
 }
@@ -274,9 +274,10 @@ func UploadShow(g *gin.Context) {
 		fileSize := float64(userFileMate.FileInfo.Size)
 		unitList := []string{"Bytes", "KB", "MB", "GB", "TB"}
 		index := 0
-		for ; index < len(unitList); index++ {
+		for index < len(unitList) {
 			if fileSize > 1024 {
 				fileSize = float64(fileSize) / float64(1024)
+				index++
 			} else {
 				break
 			}

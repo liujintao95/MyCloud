@@ -23,7 +23,8 @@ type IFileBlock interface {
 
 	GetCache(string) (models.FileBlockInfo, error)
 	GetCacheList(string) ([]models.FileBlockInfo, error)
-	SetCache(string, interface{}) error
+	SetCache(string, models.FileBlockInfo) error
+	SetCacheList(string, []models.FileBlockInfo) error
 	DelCache(string) error
 }
 
@@ -51,7 +52,7 @@ func (f FileBlockManager) GetByUser(user string) ([]models.FileBlockInfo, error)
 	if err != nil {
 		fileBlockList, err = f.GetSqlByUser(user)
 		if err == nil {
-			err = f.SetCache("fb_"+user, fileBlockList)
+			err = f.SetCacheList("fb_"+user, fileBlockList)
 		}
 	}
 	return fileBlockList, err
@@ -226,7 +227,17 @@ func (f FileBlockManager) GetCacheList(key string) ([]models.FileBlockInfo, erro
 	return fileBlockList, err
 }
 
-func (f FileBlockManager) SetCache(key string, fileBlockMate interface{}) error {
+func (f FileBlockManager) SetCache(key string, fileBlockMate models.FileBlockInfo) error {
+	jsonData, err := json.Marshal(fileBlockMate)
+
+	rc := utils.RedisPool.Get()
+	defer rc.Close()
+
+	_, err = rc.Do("SET", key, string(jsonData), "EX", conf.REDIS_MAXAGE)
+	return err
+}
+
+func (f FileBlockManager) SetCacheList(key string, fileBlockMate []models.FileBlockInfo) error {
 	jsonData, err := json.Marshal(fileBlockMate)
 
 	rc := utils.RedisPool.Get()

@@ -26,7 +26,8 @@ type IUserFileMap interface {
 
 	GetCache(string) (models.UserFileMap, error)
 	GetCacheList(string) ([]models.UserFileMap, error)
-	SetCache(string, interface{}) error
+	SetCache(string, models.UserFileMap) error
+	SetCacheList(string, []models.UserFileMap) error
 	DelCache(string) error
 }
 
@@ -40,10 +41,10 @@ func NewUserFileManager() IUserFileMap {
 
 func (u UserFileManager) GetByUser(user string) ([]models.UserFileMap, error) {
 	userFileList, err := u.GetCacheList("UserFileList_" + user)
-	if err != nil {
+	if err != nil || userFileList == nil {
 		userFileList, err = u.GetSqlByUser(user)
 		if err == nil {
-			err = u.SetCache("UserFileList_"+user, userFileList)
+			err = u.SetCacheList("UserFileList_"+user, userFileList)
 		}
 	}
 	return userFileList, err
@@ -51,10 +52,10 @@ func (u UserFileManager) GetByUser(user string) ([]models.UserFileMap, error) {
 
 func (u UserFileManager) GetByFile(fileHash string) ([]models.UserFileMap, error) {
 	userFileList, err := u.GetCacheList("UserFileList_" + fileHash)
-	if err != nil {
+	if err != nil || userFileList == nil {
 		userFileList, err = u.GetSqlByFile(fileHash)
 		if err == nil {
-			err = u.SetCache("UserFileList_"+fileHash, userFileList)
+			err = u.SetCacheList("UserFileList_"+fileHash, userFileList)
 		}
 	}
 	return userFileList, err
@@ -62,7 +63,7 @@ func (u UserFileManager) GetByFile(fileHash string) ([]models.UserFileMap, error
 
 func (u UserFileManager) GetByUserFile(user string, fileHash string) (models.UserFileMap, error) {
 	userFileMate, err := u.GetCache(user + fileHash)
-	if err != nil {
+	if err != nil || userFileMate.Recycled == "" {
 		userFileMate, err = u.GetSqlByUserFile(user, fileHash)
 		if err == nil {
 			err = u.SetCache(user+fileHash, userFileMate)
@@ -233,15 +234,14 @@ func (u UserFileManager) GetSqlByUserFile(user string, fileHash string) (models.
 func (u UserFileManager) SetSql(userFileMate models.UserFileMap) (int64, error) {
 	insertSql := `
 		INSERT INTO user_file_map(
-			uf_ui_id, uf_fi_id, uf_file_name,
-			uf_remark
+			uf_ui_id, uf_fi_id, uf_file_name
 		) 
-		VALUES (?,?,?,?)
+		VALUES (?,?,?)
 	`
 	res, err := utils.Conn.Exec(
 		insertSql,
 		userFileMate.UserInfo.Id, userFileMate.FileInfo.Id,
-		userFileMate.FileName, userFileMate.Remark,
+		userFileMate.FileName,
 	)
 	if err != nil {
 		return -1, err
@@ -307,7 +307,17 @@ func (u UserFileManager) GetCacheList(key string) ([]models.UserFileMap, error) 
 	return userFileList, err
 }
 
-func (u UserFileManager) SetCache(key string, userFileMate interface{}) error {
+func (u UserFileManager) SetCache(key string, userFileMate models.UserFileMap) error {
+	jsonData, err := json.Marshal(userFileMate)
+
+	rc := utils.RedisPool.Get()
+	defer rc.Close()
+
+	_, err = rc.Do("SET", key, string(jsonData), "EX", conf.REDIS_MAXAGE)
+	return err
+}
+
+func (u UserFileManager) SetCacheList(key string, userFileMate []models.UserFileMap) error {
 	jsonData, err := json.Marshal(userFileMate)
 
 	rc := utils.RedisPool.Get()
