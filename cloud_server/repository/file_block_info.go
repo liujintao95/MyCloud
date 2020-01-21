@@ -92,7 +92,7 @@ func (f FileBlockManager) GetSqlByUploadId(uploadId string) (models.FileBlockInf
 	var fileBlockMate models.FileBlockInfo
 
 	getSql := `
-		SELECT fbi_id, fbi_hash, fbi_file_name, 
+		SELECT fbi_id, fbi_hash, fbi_file_name, fbi_path,
 		fbi_upload_id, fbi_file_size, fbi_block_size, 
 		fbi_block_count, fbi_state, fbi_recycled,
 		ui_id, ui_name, ui_user, ui_pwd, ui_level,
@@ -105,7 +105,7 @@ func (f FileBlockManager) GetSqlByUploadId(uploadId string) (models.FileBlockInf
 	`
 	rows := utils.Conn.QueryRow(getSql, uploadId)
 	err := rows.Scan(
-		&fileBlockMate.Id, &fileBlockMate.Hash, &fileBlockMate.FileName,
+		&fileBlockMate.Id, &fileBlockMate.Hash, &fileBlockMate.FileName, &fileBlockMate.Path,
 		&fileBlockMate.UploadID, &fileBlockMate.FileSize, &fileBlockMate.BlockSize,
 		&fileBlockMate.BlockCount, &fileBlockMate.State, &fileBlockMate.Recycled,
 		&fileBlockMate.UserInfo.Id, &fileBlockMate.UserInfo.Name,
@@ -120,7 +120,7 @@ func (f FileBlockManager) GetSqlByUser(user string) ([]models.FileBlockInfo, err
 	var fileBlockList []models.FileBlockInfo
 
 	getSql := `
-		SELECT fbi_id, fbi_hash, fbi_file_name, 
+		SELECT fbi_id, fbi_hash, fbi_file_name, fbi_path,
 		fbi_upload_id, fbi_file_size, fbi_block_size, 
 		fbi_block_count, fbi_state, fbi_recycled,
 		ui_id, ui_name, ui_user, ui_pwd, ui_level,
@@ -138,7 +138,7 @@ func (f FileBlockManager) GetSqlByUser(user string) ([]models.FileBlockInfo, err
 	for rows.Next() {
 		var fileBlockMate models.FileBlockInfo
 		_ = rows.Scan(
-			&fileBlockMate.Id, &fileBlockMate.Hash, &fileBlockMate.FileName,
+			&fileBlockMate.Id, &fileBlockMate.Hash, &fileBlockMate.FileName, &fileBlockMate.Path,
 			&fileBlockMate.UploadID, &fileBlockMate.FileSize, &fileBlockMate.BlockSize,
 			&fileBlockMate.BlockCount, &fileBlockMate.State, &fileBlockMate.Recycled,
 			&fileBlockMate.UserInfo.Id, &fileBlockMate.UserInfo.Name,
@@ -154,17 +154,17 @@ func (f FileBlockManager) GetSqlByUser(user string) ([]models.FileBlockInfo, err
 func (f FileBlockManager) SetSql(fileBlockMate models.FileBlockInfo) (int64, error) {
 	insertSql := `
 		INSERT INTO file_block_info(
-			fbi_hash, fbi_file_name, fbi_ui_id, fbi_upload_id,
+			fbi_hash, fbi_file_name, fbi_path, fbi_ui_id, fbi_upload_id,
 			fbi_file_size, fbi_block_size, fbi_block_count
 		) 
-		VALUES (?,?,?,?,?,?,?)
+		VALUES (?,?,?,?,?,?,?,?)
 	`
 	res, err := utils.Conn.Exec(
 		insertSql,
 		fileBlockMate.Hash, fileBlockMate.FileName,
-		fileBlockMate.UserInfo.Id, fileBlockMate.UploadID,
-		fileBlockMate.FileSize, fileBlockMate.BlockSize,
-		fileBlockMate.BlockCount,
+		fileBlockMate.Path, fileBlockMate.UserInfo.Id,
+		fileBlockMate.UploadID, fileBlockMate.FileSize,
+		fileBlockMate.BlockSize, fileBlockMate.BlockCount,
 	)
 	if err != nil {
 		return -1, err
@@ -179,16 +179,16 @@ func (f FileBlockManager) SetSql(fileBlockMate models.FileBlockInfo) (int64, err
 func (f FileBlockManager) UpdateSql(fileBlockMate models.FileBlockInfo) error {
 	updateSql := `
 		UPDATE file_block_info 
-		SET fbi_file_name=?, fbi_file_size=?, fbi_block_size=?,
+		SET fbi_file_name=?, fbi_path=? fbi_file_size=?, fbi_block_size=?,
 		fbi_block_count=?, fbi_state=?, fbi_recycled=?
 		WHERE fbi_upload_id=?
 	`
 	_, err := utils.Conn.Exec(
 		updateSql,
-		fileBlockMate.FileName, fileBlockMate.FileSize,
-		fileBlockMate.BlockSize, fileBlockMate.BlockCount,
-		fileBlockMate.State, fileBlockMate.Recycled,
-		fileBlockMate.UploadID,
+		fileBlockMate.FileName, fileBlockMate.Path,
+		fileBlockMate.FileSize, fileBlockMate.BlockSize,
+		fileBlockMate.BlockCount, fileBlockMate.State,
+		fileBlockMate.Recycled, fileBlockMate.UploadID,
 	)
 	return err
 }

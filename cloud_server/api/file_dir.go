@@ -40,9 +40,11 @@ func ShowDir(g *gin.Context) {
 }
 
 func SaveDir(g *gin.Context) {
-	dirList := g.PostFormArray("dirList")
+	dirStr := g.PostForm("dirList")
 	userInter, _ := g.Get("userInfo")
 	userMate := userInter.(models.UserInfo)
+
+	dirList := strings.Split(dirStr, "|**|")
 
 	maxId, err := dirManager.GetSqlMaxId()
 	errCheck(g, err, "SaveDir:Failed to get max id", http.StatusInternalServerError)
@@ -52,12 +54,12 @@ func SaveDir(g *gin.Context) {
 	for _, val := range dirList {
 		maxId++
 
-		valList := strings.Split(val, "|")
+		valList := strings.Split(val, "|*|")
 		curDir := valList[0]
 		fileName := valList[1]
 		fileHash := valList[2]
 
-		idMap[curDir+fileName+"/"] = maxId
+		idMap[curDir+fileName] = maxId
 
 		dirMate := models.FileDirectory{}
 		dirMate.Id = maxId

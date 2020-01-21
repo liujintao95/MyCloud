@@ -42,6 +42,7 @@ type FileBlockInfo struct {
 	Id         int64    `db:"fbi_id"`
 	Hash       string   `db:"fbi_hash"`
 	FileName   string   `db:"fbi_file_name"`
+	Path       string   `db:"fbi_path"`
 	UserInfo   UserInfo `db:"fbi_ui_id"`
 	UploadID   string   `db:"fbi_upload_id"`
 	FileSize   int64    `db:"fbi_file_size"`

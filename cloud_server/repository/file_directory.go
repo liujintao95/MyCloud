@@ -5,8 +5,10 @@ import (
 	"MyCloud/conf"
 	"MyCloud/utils"
 	"encoding/json"
-	"github.com/garyburd/redigo/redis"
 	"strconv"
+	"strings"
+
+	"github.com/garyburd/redigo/redis"
 )
 
 type IDir interface {
@@ -97,11 +99,11 @@ func (d DirManager) GetSqlMaxId() (int64, error) {
 	var res int64
 
 	getSql := `
-		SELECT MAX(id)
+		SELECT IF(MAX(fd_id),MAX(fd_id),0)
 		FROM file_directory
 	`
-	rows := utils.Conn.QueryRow(getSql)
-	err := rows.Scan(&res)
+	row := utils.Conn.QueryRow(getSql)
+	err := row.Scan(&res)
 	return res, err
 }
 
@@ -219,19 +221,20 @@ func (d DirManager) SetSql(dirList []models.FileDirectory) error {
 			fd_id, fd_uf_id, fd_is_dir,
 			fd_dir_name, fd_fid
 		) 
-		VALUES (?,?,?,?,?,?)
+		VALUES
 	`
-
+	var insertList []string
 	for _, dirMate := range dirList {
-		insertSql += ",(?,?,?,?,?,?)"
+		insertList = append(insertList, "(?,?,?,?,?)")
 		setlist = append(setlist, dirMate.Id)
 		setlist = append(setlist, dirMate.UserFileMap.Id)
 		setlist = append(setlist, dirMate.IsDir)
 		setlist = append(setlist, dirMate.DirName)
 		setlist = append(setlist, dirMate.Fid)
 	}
+	insertSql += strings.Join(insertList, ",")
 
-	_, err := utils.Conn.Exec(insertSql, setlist)
+	_, err := utils.Conn.Exec(insertSql, setlist...)
 	return err
 }
 

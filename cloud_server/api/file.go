@@ -240,10 +240,14 @@ func Delete(g *gin.Context) {
 
 // 显示上传列表
 func UploadShow(g *gin.Context) {
+	pageStr := g.Query("page")
 	userInter, _ := g.Get("userInfo")
 	userMate := userInter.(models.UserInfo)
 
-	userFileList, err := userFileManager.GetByUser(userMate.User)
+	page, err := strconv.Atoi(pageStr)
+	errCheck(g, err, "UploadShow:Failed to conv page string", http.StatusInternalServerError)
+
+	userFileList, err := userFileManager.GetByUser(userMate.User, page)
 	if err == sql.ErrNoRows {
 		g.JSON(http.StatusOK, gin.H{
 			"errmsg": "UploadShow:No files were found",
@@ -303,8 +307,14 @@ func UploadShow(g *gin.Context) {
 		resList = append(resList, resDict)
 	}
 
+	count, err := userFileManager.GetCountByUser(userMate.User)
+	if err != nil && err != sql.ErrNoRows {
+		errCheck(g, err, "UploadShow:Failed to read file_block_info", http.StatusInternalServerError)
+	}
+
 	g.JSON(http.StatusOK, gin.H{
 		"errmsg": "ok",
 		"data":   resList,
+		"count":  count,
 	})
 }

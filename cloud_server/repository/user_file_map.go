@@ -10,13 +10,14 @@ import (
 )
 
 type IUserFileMap interface {
-	GetByUser(string) ([]models.UserFileMap, error)
-	GetByFile(string) ([]models.UserFileMap, error)
+	GetByUser(string, int) ([]models.UserFileMap, error)
+	GetByFile(string, int) ([]models.UserFileMap, error)
 	GetByUserFile(string, string) (models.UserFileMap, error)
 	Set(models.UserFileMap) (int64, error)
 	Update(models.UserFileMap) error
 	DeleteByUserFile(string, string) error
 
+	GetCountByUser(string) (int, error)
 	GetSqlByUser(string) ([]models.UserFileMap, error)
 	GetSqlByFile(string) ([]models.UserFileMap, error)
 	GetSqlByUserFile(string, string) (models.UserFileMap, error)
@@ -39,7 +40,7 @@ func NewUserFileManager() IUserFileMap {
 	return &UserFileManager{table: "user_file_map"}
 }
 
-func (u UserFileManager) GetByUser(user string) ([]models.UserFileMap, error) {
+func (u UserFileManager) GetByUser(user string, page int) ([]models.UserFileMap, error) {
 	userFileList, err := u.GetCacheList("UserFileList_" + user)
 	if err != nil || userFileList == nil {
 		userFileList, err = u.GetSqlByUser(user)
@@ -47,10 +48,15 @@ func (u UserFileManager) GetByUser(user string) ([]models.UserFileMap, error) {
 			err = u.SetCacheList("UserFileList_"+user, userFileList)
 		}
 	}
-	return userFileList, err
+
+	if len(userFileList) >= page*10 {
+		return userFileList[(page-1)*10 : page*10], err
+	} else {
+		return userFileList[(page-1)*10:], err
+	}
 }
 
-func (u UserFileManager) GetByFile(fileHash string) ([]models.UserFileMap, error) {
+func (u UserFileManager) GetByFile(fileHash string, page int) ([]models.UserFileMap, error) {
 	userFileList, err := u.GetCacheList("UserFileList_" + fileHash)
 	if err != nil || userFileList == nil {
 		userFileList, err = u.GetSqlByFile(fileHash)
@@ -58,7 +64,12 @@ func (u UserFileManager) GetByFile(fileHash string) ([]models.UserFileMap, error
 			err = u.SetCacheList("UserFileList_"+fileHash, userFileList)
 		}
 	}
-	return userFileList, err
+
+	if len(userFileList) >= page*10 {
+		return userFileList[(page-1)*10 : page*10], err
+	} else {
+		return userFileList[(page-1)*10:], err
+	}
 }
 
 func (u UserFileManager) GetByUserFile(user string, fileHash string) (models.UserFileMap, error) {
@@ -79,6 +90,15 @@ func (u UserFileManager) Set(userFileMate models.UserFileMap) (int64, error) {
 	}
 	key := userFileMate.UserInfo.User + userFileMate.FileInfo.Hash
 	err = u.SetCache(key, userFileMate)
+
+	userFileList, err := u.GetCacheList("UserFileList_" + userFileMate.UserInfo.User)
+	userFileList = append(userFileList, userFileMate)
+	err = u.SetCacheList("UserFileList_"+userFileMate.UserInfo.User, userFileList)
+
+	userFileList, err = u.GetCacheList("UserFileList_" + userFileMate.FileInfo.Hash)
+	userFileList = append(userFileList, userFileMate)
+	err = u.SetCacheList("UserFileList_"+userFileMate.FileInfo.Hash, userFileList)
+
 	return id, err
 }
 
@@ -89,6 +109,24 @@ func (u UserFileManager) Update(userFileMate models.UserFileMap) error {
 	}
 	key := userFileMate.UserInfo.User + userFileMate.FileInfo.Hash
 	err = u.SetCache(key, userFileMate)
+
+	userFileList, err := u.GetCacheList("UserFileList_" + userFileMate.UserInfo.User)
+	for index, val := range userFileList {
+		if val.Id == userFileMate.Id {
+			userFileList = append(userFileList[:index], userFileMate)
+			userFileList = append(userFileList[:index], userFileList[index+1:]...)
+		}
+	}
+	err = u.SetCacheList("UserFileList_"+userFileMate.UserInfo.User, userFileList)
+
+	userFileList, err = u.GetCacheList("UserFileList_" + userFileMate.FileInfo.Hash)
+	for index, val := range userFileList {
+		if val.Id == userFileMate.Id {
+			userFileList = append(userFileList[:index], userFileMate)
+			userFileList = append(userFileList[:index], userFileList[index+1:]...)
+		}
+	}
+	err = u.SetCacheList("UserFileList_"+userFileMate.FileInfo.Hash, userFileList)
 	return err
 }
 
@@ -98,7 +136,38 @@ func (u UserFileManager) DeleteByUserFile(user string, fileHash string) error {
 		return err
 	}
 	err = u.DelCache(user + fileHash)
+
+	userFileList, err := u.GetCacheList("UserFileList_" + user)
+	for index, val := range userFileList {
+		if val.UserInfo.User == user && val.FileInfo.Hash == fileHash {
+			userFileList = append(userFileList[:index], userFileList[index+1:]...)
+		}
+	}
+	err = u.SetCacheList("UserFileList_"+user, userFileList)
+
+	userFileList, err = u.GetCacheList("UserFileList_" + fileHash)
+	for index, val := range userFileList {
+		if val.UserInfo.User == user && val.FileInfo.Hash == fileHash {
+			userFileList = append(userFileList[:index], userFileList[index+1:]...)
+		}
+	}
+	err = u.SetCacheList("UserFileList_"+fileHash, userFileList)
 	return err
+}
+
+func (u UserFileManager) GetCountByUser(user string) (int, error) {
+	var res int
+	getSql := `
+		SELECT COUNT(uf_id)
+		FROM user_file_map
+		INNER JOIN user_info
+		ON uf_ui_id = ui_id
+		WHERE ui_user = ?
+		AND uf_recycled = 'N'
+	`
+	rows := utils.Conn.QueryRow(getSql, user)
+	err := rows.Scan(&res)
+	return res, err
 }
 
 func (u UserFileManager) GetSqlByUser(user string) ([]models.UserFileMap, error) {
