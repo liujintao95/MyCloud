@@ -2,10 +2,10 @@ package api
 
 import (
 	"MyCloud/cloud_server/models"
+	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 func ShowDir(g *gin.Context) {
@@ -27,7 +27,7 @@ func ShowDir(g *gin.Context) {
 			dirMate.UserFileMap.Remark.String,
 			dirMate.UserFileMap.FileInfo.Hash,
 			strconv.FormatInt(dirMate.UserFileMap.FileInfo.Size, 10),
-			strconv.Itoa(dirMate.IsDir),
+			strconv.Itoa(dirMate.IsFolder),
 			dirMate.DirName,
 		}
 		resList = append(resList, msg)
@@ -44,7 +44,14 @@ func SaveDir(g *gin.Context) {
 	userInter, _ := g.Get("userInfo")
 	userMate := userInter.(models.UserInfo)
 
-	dirList := strings.Split(dirStr, "|**|")
+	type dirMap struct {
+		CurDir   string `json:"curDir"`
+		FileName string `json:"fileName"`
+		FileHash string `json:"fileHash"`
+	}
+	var dirList []dirMap
+	err := json.Unmarshal([]byte(dirStr), &dirList)
+	errCheck(g, err, "SaveDir:Failed to Unmarshal json", http.StatusInternalServerError)
 
 	maxId, err := dirManager.GetSqlMaxId()
 	errCheck(g, err, "SaveDir:Failed to get max id", http.StatusInternalServerError)
@@ -54,31 +61,26 @@ func SaveDir(g *gin.Context) {
 	for _, val := range dirList {
 		maxId++
 
-		valList := strings.Split(val, "|*|")
-		curDir := valList[0]
-		fileName := valList[1]
-		fileHash := valList[2]
-
-		idMap[curDir+fileName] = maxId
+		idMap[val.CurDir+val.FileName] = maxId
 
 		dirMate := models.FileDirectory{}
 		dirMate.Id = maxId
-		dirMate.DirName = curDir + fileName
+		dirMate.DirName = val.CurDir + val.FileName
 
-		if curDir == "/" {
+		if val.CurDir == "" {
 			dirMate.Fid = -1
 		} else {
-			dirMate.Fid = idMap[curDir]
+			dirMate.Fid = idMap[val.CurDir]
 		}
 
-		if fileHash != "NULL" {
-			userFileMate, err := userFileManager.GetByUserFile(userMate.User, fileHash)
+		if val.FileHash != "" {
+			userFileMate, err := userFileManager.GetByUserFile(userMate.User, val.FileHash)
 			errCheck(g, err, "SaveDir:Failed to get file info", http.StatusInternalServerError)
 
 			dirMate.UserFileMap = userFileMate
-			dirMate.IsDir = 0
+			dirMate.IsFolder = 0
 		} else {
-			dirMate.IsDir = 1
+			dirMate.IsFolder = 1
 		}
 
 		dirMateList = append(dirMateList, dirMate)

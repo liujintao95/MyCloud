@@ -8,35 +8,35 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
-type IFileBlock interface {
-	GetByUploadId(string) (models.FileBlockInfo, error)
-	GetByUser(string) ([]models.FileBlockInfo, error)
-	Set(models.FileBlockInfo) (int64, error)
-	Update(models.FileBlockInfo) error
-	DeleteByUploadId(string) error
-
-	GetSqlByUploadId(string) (models.FileBlockInfo, error)
-	GetSqlByUser(string) ([]models.FileBlockInfo, error)
-	SetSql(models.FileBlockInfo) (int64, error)
-	UpdateSql(models.FileBlockInfo) error
-	DelSqlByUploadId(string) error
-
-	GetCache(string) (models.FileBlockInfo, error)
-	GetCacheList(string) ([]models.FileBlockInfo, error)
-	SetCache(string, models.FileBlockInfo) error
-	SetCacheList(string, []models.FileBlockInfo) error
-	DelCache(string) error
-}
+//type IFileBlock interface {
+//	GetByUploadId(string) (models.FileBlockInfo, error)
+//	GetByUser(string) ([]models.FileBlockInfo, error)
+//	Set(models.FileBlockInfo) (int64, error)
+//	Update(models.FileBlockInfo) error
+//	DeleteByUploadId(string) error
+//
+//	GetSqlByUploadId(string) (models.FileBlockInfo, error)
+//	GetSqlByUser(string) ([]models.FileBlockInfo, error)
+//	SetSql(models.FileBlockInfo) (int64, error)
+//	UpdateSql(models.FileBlockInfo) error
+//	DelSqlByUploadId(string) error
+//
+//	GetCache(string) (models.FileBlockInfo, error)
+//	GetCacheList(string) ([]models.FileBlockInfo, error)
+//	SetCache(string, models.FileBlockInfo) error
+//	SetCacheList(string, []models.FileBlockInfo) error
+//	DelCache(string) error
+//}
 
 type FileBlockManager struct {
 	table string
 }
 
-func NewFileBlockManager() IFileBlock {
+func NewFileBlockManager() *FileBlockManager {
 	return &FileBlockManager{table: "file_block_info"}
 }
 
-func (f FileBlockManager) GetByUploadId(uploadId string) (models.FileBlockInfo, error) {
+func (f *FileBlockManager) GetByUploadId(uploadId string) (models.FileBlockInfo, error) {
 	fileBlockMate, err := f.GetCache(uploadId)
 	if err != nil {
 		fileBlockMate, err = f.GetSqlByUploadId(uploadId)
@@ -47,7 +47,7 @@ func (f FileBlockManager) GetByUploadId(uploadId string) (models.FileBlockInfo, 
 	return fileBlockMate, err
 }
 
-func (f FileBlockManager) GetByUser(user string) ([]models.FileBlockInfo, error) {
+func (f *FileBlockManager) GetByUser(user string) ([]models.FileBlockInfo, error) {
 	fileBlockList, err := f.GetCacheList(user)
 	if err != nil {
 		fileBlockList, err = f.GetSqlByUser(user)
@@ -58,7 +58,7 @@ func (f FileBlockManager) GetByUser(user string) ([]models.FileBlockInfo, error)
 	return fileBlockList, err
 }
 
-func (f FileBlockManager) Set(fileBlockMate models.FileBlockInfo) (int64, error) {
+func (f *FileBlockManager) Set(fileBlockMate models.FileBlockInfo) (int64, error) {
 	id, err := f.SetSql(fileBlockMate)
 	if err != nil {
 		return -1, err
@@ -69,7 +69,7 @@ func (f FileBlockManager) Set(fileBlockMate models.FileBlockInfo) (int64, error)
 	return id, err
 }
 
-func (f FileBlockManager) Update(fileBlockMate models.FileBlockInfo) error {
+func (f *FileBlockManager) Update(fileBlockMate models.FileBlockInfo) error {
 	err := f.UpdateSql(fileBlockMate)
 	if err != nil {
 		return err
@@ -79,7 +79,7 @@ func (f FileBlockManager) Update(fileBlockMate models.FileBlockInfo) error {
 	return err
 }
 
-func (f FileBlockManager) DeleteByUploadId(uploadId string) error {
+func (f *FileBlockManager) DeleteByUploadId(uploadId string) error {
 	err := f.DelSqlByUploadId(uploadId)
 	if err != nil {
 		return err
@@ -88,7 +88,7 @@ func (f FileBlockManager) DeleteByUploadId(uploadId string) error {
 	return err
 }
 
-func (f FileBlockManager) GetSqlByUploadId(uploadId string) (models.FileBlockInfo, error) {
+func (f *FileBlockManager) GetSqlByUploadId(uploadId string) (models.FileBlockInfo, error) {
 	var fileBlockMate models.FileBlockInfo
 
 	getSql := `
@@ -116,7 +116,7 @@ func (f FileBlockManager) GetSqlByUploadId(uploadId string) (models.FileBlockInf
 	return fileBlockMate, err
 }
 
-func (f FileBlockManager) GetSqlByUser(user string) ([]models.FileBlockInfo, error) {
+func (f *FileBlockManager) GetSqlByUser(user string) ([]models.FileBlockInfo, error) {
 	var fileBlockList []models.FileBlockInfo
 
 	getSql := `
@@ -151,7 +151,7 @@ func (f FileBlockManager) GetSqlByUser(user string) ([]models.FileBlockInfo, err
 	return fileBlockList, err
 }
 
-func (f FileBlockManager) SetSql(fileBlockMate models.FileBlockInfo) (int64, error) {
+func (f *FileBlockManager) SetSql(fileBlockMate models.FileBlockInfo) (int64, error) {
 	insertSql := `
 		INSERT INTO file_block_info(
 			fbi_hash, fbi_file_name, fbi_path, fbi_ui_id, fbi_upload_id,
@@ -176,7 +176,7 @@ func (f FileBlockManager) SetSql(fileBlockMate models.FileBlockInfo) (int64, err
 	return id, err
 }
 
-func (f FileBlockManager) UpdateSql(fileBlockMate models.FileBlockInfo) error {
+func (f *FileBlockManager) UpdateSql(fileBlockMate models.FileBlockInfo) error {
 	updateSql := `
 		UPDATE file_block_info 
 		SET fbi_file_name=?, fbi_path=? fbi_file_size=?, fbi_block_size=?,
@@ -193,7 +193,7 @@ func (f FileBlockManager) UpdateSql(fileBlockMate models.FileBlockInfo) error {
 	return err
 }
 
-func (f FileBlockManager) DelSqlByUploadId(uploadId string) error {
+func (f *FileBlockManager) DelSqlByUploadId(uploadId string) error {
 	updateSql := `
 		UPDATE file_block_info 
 		SET fbi_recycled = 'Y'
@@ -203,7 +203,7 @@ func (f FileBlockManager) DelSqlByUploadId(uploadId string) error {
 	return err
 }
 
-func (f FileBlockManager) GetCache(key string) (models.FileBlockInfo, error) {
+func (f *FileBlockManager) GetCache(key string) (models.FileBlockInfo, error) {
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 
@@ -215,7 +215,7 @@ func (f FileBlockManager) GetCache(key string) (models.FileBlockInfo, error) {
 	return fileBlockMate, err
 }
 
-func (f FileBlockManager) GetCacheList(key string) ([]models.FileBlockInfo, error) {
+func (f *FileBlockManager) GetCacheList(key string) ([]models.FileBlockInfo, error) {
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 
@@ -227,7 +227,7 @@ func (f FileBlockManager) GetCacheList(key string) ([]models.FileBlockInfo, erro
 	return fileBlockList, err
 }
 
-func (f FileBlockManager) SetCache(key string, fileBlockMate models.FileBlockInfo) error {
+func (f *FileBlockManager) SetCache(key string, fileBlockMate models.FileBlockInfo) error {
 	jsonData, err := json.Marshal(fileBlockMate)
 
 	rc := utils.RedisPool.Get()
@@ -237,7 +237,7 @@ func (f FileBlockManager) SetCache(key string, fileBlockMate models.FileBlockInf
 	return err
 }
 
-func (f FileBlockManager) SetCacheList(key string, fileBlockMate []models.FileBlockInfo) error {
+func (f *FileBlockManager) SetCacheList(key string, fileBlockMate []models.FileBlockInfo) error {
 	jsonData, err := json.Marshal(fileBlockMate)
 
 	rc := utils.RedisPool.Get()
@@ -247,7 +247,7 @@ func (f FileBlockManager) SetCacheList(key string, fileBlockMate []models.FileBl
 	return err
 }
 
-func (f FileBlockManager) DelCache(key string) error {
+func (f *FileBlockManager) DelCache(key string) error {
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 	_, err := rc.Do("DEL", key)

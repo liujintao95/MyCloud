@@ -17,5 +17,5 @@ var MySqlConf = map[string]string{
 	"type":     "tcp",
 	"address":  "127.0.0.1",
 	"port":     "3306",
-	"database": "my_cloud",
+	"database": "icloud",
 }

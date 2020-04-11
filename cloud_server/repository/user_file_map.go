@@ -9,38 +9,38 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
-type IUserFileMap interface {
-	GetByUser(string, int) ([]models.UserFileMap, error)
-	GetByFile(string, int) ([]models.UserFileMap, error)
-	GetByUserFile(string, string) (models.UserFileMap, error)
-	Set(models.UserFileMap) (int64, error)
-	Update(models.UserFileMap) error
-	DeleteByUserFile(string, string) error
-
-	GetCountByUser(string) (int, error)
-	GetSqlByUser(string) ([]models.UserFileMap, error)
-	GetSqlByFile(string) ([]models.UserFileMap, error)
-	GetSqlByUserFile(string, string) (models.UserFileMap, error)
-	SetSql(models.UserFileMap) (int64, error)
-	UpdateSql(models.UserFileMap) error
-	DelSqlByUserFile(string, string) error
-
-	GetCache(string) (models.UserFileMap, error)
-	GetCacheList(string) ([]models.UserFileMap, error)
-	SetCache(string, models.UserFileMap) error
-	SetCacheList(string, []models.UserFileMap) error
-	DelCache(string) error
-}
+//type IUserFileMap interface {
+//	GetByUser(string, int) ([]models.UserFileMap, error)
+//	GetByFile(string, int) ([]models.UserFileMap, error)
+//	GetByUserFile(string, string) (models.UserFileMap, error)
+//	Set(models.UserFileMap) (int64, error)
+//	Update(models.UserFileMap) error
+//	DeleteByUserFile(string, string) error
+//
+//	GetCountByUser(string) (int, error)
+//	GetSqlByUser(string) ([]models.UserFileMap, error)
+//	GetSqlByFile(string) ([]models.UserFileMap, error)
+//	GetSqlByUserFile(string, string) (models.UserFileMap, error)
+//	SetSql(models.UserFileMap) (int64, error)
+//	UpdateSql(models.UserFileMap) error
+//	DelSqlByUserFile(string, string) error
+//
+//	GetCache(string) (models.UserFileMap, error)
+//	GetCacheList(string) ([]models.UserFileMap, error)
+//	SetCache(string, models.UserFileMap) error
+//	SetCacheList(string, []models.UserFileMap) error
+//	DelCache(string) error
+//}
 
 type UserFileManager struct {
 	table string
 }
 
-func NewUserFileManager() IUserFileMap {
+func NewUserFileManager() *UserFileManager {
 	return &UserFileManager{table: "user_file_map"}
 }
 
-func (u UserFileManager) GetByUser(user string, page int) ([]models.UserFileMap, error) {
+func (u *UserFileManager) GetByUser(user string, page int) ([]models.UserFileMap, error) {
 	userFileList, err := u.GetCacheList("UserFileList_" + user)
 	if err != nil || userFileList == nil {
 		userFileList, err = u.GetSqlByUser(user)
@@ -56,7 +56,7 @@ func (u UserFileManager) GetByUser(user string, page int) ([]models.UserFileMap,
 	}
 }
 
-func (u UserFileManager) GetByFile(fileHash string, page int) ([]models.UserFileMap, error) {
+func (u *UserFileManager) GetByFile(fileHash string, page int) ([]models.UserFileMap, error) {
 	userFileList, err := u.GetCacheList("UserFileList_" + fileHash)
 	if err != nil || userFileList == nil {
 		userFileList, err = u.GetSqlByFile(fileHash)
@@ -72,7 +72,7 @@ func (u UserFileManager) GetByFile(fileHash string, page int) ([]models.UserFile
 	}
 }
 
-func (u UserFileManager) GetByUserFile(user string, fileHash string) (models.UserFileMap, error) {
+func (u *UserFileManager) GetByUserFile(user string, fileHash string) (models.UserFileMap, error) {
 	userFileMate, err := u.GetCache(user + fileHash)
 	if err != nil || userFileMate.Recycled == "" {
 		userFileMate, err = u.GetSqlByUserFile(user, fileHash)
@@ -83,7 +83,7 @@ func (u UserFileManager) GetByUserFile(user string, fileHash string) (models.Use
 	return userFileMate, err
 }
 
-func (u UserFileManager) Set(userFileMate models.UserFileMap) (int64, error) {
+func (u *UserFileManager) Set(userFileMate models.UserFileMap) (int64, error) {
 	id, err := u.SetSql(userFileMate)
 	if err != nil {
 		return -1, err
@@ -102,7 +102,7 @@ func (u UserFileManager) Set(userFileMate models.UserFileMap) (int64, error) {
 	return id, err
 }
 
-func (u UserFileManager) Update(userFileMate models.UserFileMap) error {
+func (u *UserFileManager) Update(userFileMate models.UserFileMap) error {
 	err := u.UpdateSql(userFileMate)
 	if err != nil {
 		return err
@@ -130,7 +130,7 @@ func (u UserFileManager) Update(userFileMate models.UserFileMap) error {
 	return err
 }
 
-func (u UserFileManager) DeleteByUserFile(user string, fileHash string) error {
+func (u *UserFileManager) DeleteByUserFile(user string, fileHash string) error {
 	err := u.DelSqlByUserFile(user, fileHash)
 	if err != nil {
 		return err
@@ -155,7 +155,7 @@ func (u UserFileManager) DeleteByUserFile(user string, fileHash string) error {
 	return err
 }
 
-func (u UserFileManager) GetCountByUser(user string) (int, error) {
+func (u *UserFileManager) GetCountByUser(user string) (int, error) {
 	var res int
 	getSql := `
 		SELECT COUNT(uf_id)
@@ -170,7 +170,7 @@ func (u UserFileManager) GetCountByUser(user string) (int, error) {
 	return res, err
 }
 
-func (u UserFileManager) GetSqlByUser(user string) ([]models.UserFileMap, error) {
+func (u *UserFileManager) GetSqlByUser(user string) ([]models.UserFileMap, error) {
 	var mapList []models.UserFileMap
 
 	getSql := `
@@ -216,7 +216,7 @@ func (u UserFileManager) GetSqlByUser(user string) ([]models.UserFileMap, error)
 	return mapList, err
 }
 
-func (u UserFileManager) GetSqlByFile(fileHash string) ([]models.UserFileMap, error) {
+func (u *UserFileManager) GetSqlByFile(fileHash string) ([]models.UserFileMap, error) {
 	var mapList []models.UserFileMap
 
 	getSql := `
@@ -262,7 +262,7 @@ func (u UserFileManager) GetSqlByFile(fileHash string) ([]models.UserFileMap, er
 	return mapList, err
 }
 
-func (u UserFileManager) GetSqlByUserFile(user string, fileHash string) (models.UserFileMap, error) {
+func (u *UserFileManager) GetSqlByUserFile(user string, fileHash string) (models.UserFileMap, error) {
 	var userFileMate models.UserFileMap
 	getSql := `
 		SELECT uf_id, uf_file_name, uf_star,
@@ -300,7 +300,7 @@ func (u UserFileManager) GetSqlByUserFile(user string, fileHash string) (models.
 	return userFileMate, err
 }
 
-func (u UserFileManager) SetSql(userFileMate models.UserFileMap) (int64, error) {
+func (u *UserFileManager) SetSql(userFileMate models.UserFileMap) (int64, error) {
 	insertSql := `
 		INSERT INTO user_file_map(
 			uf_ui_id, uf_fi_id, uf_file_name
@@ -322,7 +322,7 @@ func (u UserFileManager) SetSql(userFileMate models.UserFileMap) (int64, error) 
 	return id, err
 }
 
-func (u UserFileManager) UpdateSql(userFileMate models.UserFileMap) error {
+func (u *UserFileManager) UpdateSql(userFileMate models.UserFileMap) error {
 	updateSql := `
 		UPDATE user_file_map 
 		SET uf_file_name=?, uf_star=?,
@@ -339,7 +339,7 @@ func (u UserFileManager) UpdateSql(userFileMate models.UserFileMap) error {
 	return err
 }
 
-func (u UserFileManager) DelSqlByUserFile(user string, fileHash string) error {
+func (u *UserFileManager) DelSqlByUserFile(user string, fileHash string) error {
 	updateSql := `
 		UPDATE user_file_map,file_info,user_info
 		SET uf_recycled = 'Y'
@@ -352,7 +352,7 @@ func (u UserFileManager) DelSqlByUserFile(user string, fileHash string) error {
 	return err
 }
 
-func (u UserFileManager) GetCache(key string) (models.UserFileMap, error) {
+func (u *UserFileManager) GetCache(key string) (models.UserFileMap, error) {
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 
@@ -364,7 +364,7 @@ func (u UserFileManager) GetCache(key string) (models.UserFileMap, error) {
 	return userFileMate, err
 }
 
-func (u UserFileManager) GetCacheList(key string) ([]models.UserFileMap, error) {
+func (u *UserFileManager) GetCacheList(key string) ([]models.UserFileMap, error) {
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 
@@ -376,7 +376,7 @@ func (u UserFileManager) GetCacheList(key string) ([]models.UserFileMap, error) 
 	return userFileList, err
 }
 
-func (u UserFileManager) SetCache(key string, userFileMate models.UserFileMap) error {
+func (u *UserFileManager) SetCache(key string, userFileMate models.UserFileMap) error {
 	jsonData, err := json.Marshal(userFileMate)
 
 	rc := utils.RedisPool.Get()
@@ -386,7 +386,7 @@ func (u UserFileManager) SetCache(key string, userFileMate models.UserFileMap) e
 	return err
 }
 
-func (u UserFileManager) SetCacheList(key string, userFileMate []models.UserFileMap) error {
+func (u *UserFileManager) SetCacheList(key string, userFileMate []models.UserFileMap) error {
 	jsonData, err := json.Marshal(userFileMate)
 
 	rc := utils.RedisPool.Get()
@@ -396,7 +396,7 @@ func (u UserFileManager) SetCacheList(key string, userFileMate []models.UserFile
 	return err
 }
 
-func (u UserFileManager) DelCache(key string) error {
+func (u *UserFileManager) DelCache(key string) error {
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 	_, err := rc.Do("DEL", key)

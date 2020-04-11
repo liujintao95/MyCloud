@@ -9,27 +9,27 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
-type IUser interface {
-	GetByUser(string) (models.UserInfo, error)
-	Set(string, models.UserInfo) (int64, error)
-	Update(string, models.UserInfo) error
-	DeleteByUser(string) error
-
-	GetSqlByUser(string) (models.UserInfo, error)
-	SetSql(models.UserInfo) (int64, error)
-	UpdateSql(models.UserInfo) error
-	DelSqlByUser(string) error
-
-	GetCache(string) (models.UserInfo, error)
-	SetCache(string, models.UserInfo) error
-	DelCache(string) error
-}
+//type IUser interface {
+//	GetByUser(string) (models.UserInfo, error)
+//	Set(string, models.UserInfo) (int64, error)
+//	Update(string, models.UserInfo) error
+//	DeleteByUser(string) error
+//
+//	GetSqlByUser(string) (models.UserInfo, error)
+//	SetSql(models.UserInfo) (int64, error)
+//	UpdateSql(models.UserInfo) error
+//	DelSqlByUser(string) error
+//
+//	GetCache(string) (models.UserInfo, error)
+//	SetCache(string, models.UserInfo) error
+//	DelCache(string) error
+//}
 
 type UserManager struct {
 	table string
 }
 
-func NewUserManager() IUser {
+func NewUserManager() *UserManager {
 	return &UserManager{table: "user_info"}
 }
 

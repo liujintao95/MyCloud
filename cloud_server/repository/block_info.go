@@ -8,33 +8,33 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
-type IBlock interface {
-	GetByUploadId(string) ([]models.BlockInfo, error)
-	GetByUploadIdIndex(string, int) (models.BlockInfo, error)
-	Set([]models.BlockInfo) error
-	Update(models.BlockInfo) error
-	DeleteByUploadId(string) error
-
-	GetSqlByUploadId(string) ([]models.BlockInfo, error)
-	GetSqlByUploadIdIndex(string, int) (models.BlockInfo, error)
-	SetSql([]models.BlockInfo) error
-	UpdateSql(models.BlockInfo) error
-	DelSqlByUploadId(string) error
-
-	GetCache(string) ([]models.BlockInfo, error)
-	SetCache(string, []models.BlockInfo) error
-	DelCache(string) error
-}
+//type IBlock interface {
+//	GetByUploadId(string) ([]models.BlockInfo, error)
+//	GetByUploadIdIndex(string, int) (models.BlockInfo, error)
+//	Set([]models.BlockInfo) error
+//	Update(models.BlockInfo) error
+//	DeleteByUploadId(string) error
+//
+//	GetSqlByUploadId(string) ([]models.BlockInfo, error)
+//	GetSqlByUploadIdIndex(string, int) (models.BlockInfo, error)
+//	SetSql([]models.BlockInfo) error
+//	UpdateSql(models.BlockInfo) error
+//	DelSqlByUploadId(string) error
+//
+//	GetCache(string) ([]models.BlockInfo, error)
+//	SetCache(string, []models.BlockInfo) error
+//	DelCache(string) error
+//}
 
 type BlockManager struct {
 	table string
 }
 
-func NewBlockManager() IBlock {
+func NewBlockManager() *BlockManager {
 	return &BlockManager{table: "block_info"}
 }
 
-func (b BlockManager) GetByUploadIdIndex(uploadID string, index int) (models.BlockInfo, error) {
+func (b *BlockManager) GetByUploadIdIndex(uploadID string, index int) (models.BlockInfo, error) {
 	blockList, err := b.GetCache("bl_" + uploadID)
 
 	if err != nil {
@@ -48,7 +48,7 @@ func (b BlockManager) GetByUploadIdIndex(uploadID string, index int) (models.Blo
 	return blockMate, err
 }
 
-func (b BlockManager) GetByUploadId(uploadID string) ([]models.BlockInfo, error) {
+func (b *BlockManager) GetByUploadId(uploadID string) ([]models.BlockInfo, error) {
 	blockList, err := b.GetCache("bl_" + uploadID)
 	if err != nil {
 		blockList, err = b.GetByUploadId(uploadID)
@@ -59,7 +59,7 @@ func (b BlockManager) GetByUploadId(uploadID string) ([]models.BlockInfo, error)
 	return blockList, err
 }
 
-func (b BlockManager) Set(blockList []models.BlockInfo) error {
+func (b *BlockManager) Set(blockList []models.BlockInfo) error {
 	err := b.SetSql(blockList)
 	if err == nil {
 		blockList, err = b.GetByUploadId(blockList[0].FileBlockInfo.UploadID)
@@ -70,7 +70,7 @@ func (b BlockManager) Set(blockList []models.BlockInfo) error {
 	return err
 }
 
-func (b BlockManager) Update(blockMate models.BlockInfo) error {
+func (b *BlockManager) Update(blockMate models.BlockInfo) error {
 	err := b.UpdateSql(blockMate)
 	if err != nil {
 		return err
@@ -82,7 +82,7 @@ func (b BlockManager) Update(blockMate models.BlockInfo) error {
 	return err
 }
 
-func (b BlockManager) DeleteByUploadId(uploadID string) error {
+func (b *BlockManager) DeleteByUploadId(uploadID string) error {
 	err := b.DeleteByUploadId(uploadID)
 	if err != nil {
 		return err
@@ -91,7 +91,7 @@ func (b BlockManager) DeleteByUploadId(uploadID string) error {
 	return err
 }
 
-func (b BlockManager) GetSqlByUploadIdIndex(uploadId string, index int) (models.BlockInfo, error) {
+func (b *BlockManager) GetSqlByUploadIdIndex(uploadId string, index int) (models.BlockInfo, error) {
 	var blockMate models.BlockInfo
 
 	getSql := `
@@ -131,7 +131,7 @@ func (b BlockManager) GetSqlByUploadIdIndex(uploadId string, index int) (models.
 	return blockMate, err
 }
 
-func (b BlockManager) GetSqlByUploadId(uploadId string) ([]models.BlockInfo, error) {
+func (b *BlockManager) GetSqlByUploadId(uploadId string) ([]models.BlockInfo, error) {
 	var blockList []models.BlockInfo
 
 	getSql := `
@@ -178,7 +178,7 @@ func (b BlockManager) GetSqlByUploadId(uploadId string) ([]models.BlockInfo, err
 	return blockList, err
 }
 
-func (b BlockManager) SetSql(blockList []models.BlockInfo) error {
+func (b *BlockManager) SetSql(blockList []models.BlockInfo) error {
 	var setlist []interface{}
 	insertSql := `
 		INSERT INTO block_info(
@@ -201,7 +201,7 @@ func (b BlockManager) SetSql(blockList []models.BlockInfo) error {
 	return err
 }
 
-func (b BlockManager) UpdateSql(blockMate models.BlockInfo) error {
+func (b *BlockManager) UpdateSql(blockMate models.BlockInfo) error {
 	updateSql := `
 		UPDATE block_info 
 		SET bi_path=?, bi_size=?, bi_state=?, bi_recycled=?
@@ -217,7 +217,7 @@ func (b BlockManager) UpdateSql(blockMate models.BlockInfo) error {
 	return err
 }
 
-func (b BlockManager) DelSqlByUploadId(uploadId string) error {
+func (b *BlockManager) DelSqlByUploadId(uploadId string) error {
 	updateSql := `
 		UPDATE block_info 
 		SET bi_recycled='Y'
@@ -227,7 +227,7 @@ func (b BlockManager) DelSqlByUploadId(uploadId string) error {
 	return err
 }
 
-func (b BlockManager) GetCache(key string) ([]models.BlockInfo, error) {
+func (b *BlockManager) GetCache(key string) ([]models.BlockInfo, error) {
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 
@@ -239,7 +239,7 @@ func (b BlockManager) GetCache(key string) ([]models.BlockInfo, error) {
 	return blockList, err
 }
 
-func (b BlockManager) SetCache(key string, fileBlockList []models.BlockInfo) error {
+func (b *BlockManager) SetCache(key string, fileBlockList []models.BlockInfo) error {
 	jsonData, err := json.Marshal(fileBlockList)
 
 	rc := utils.RedisPool.Get()
@@ -249,7 +249,7 @@ func (b BlockManager) SetCache(key string, fileBlockList []models.BlockInfo) err
 	return err
 }
 
-func (b BlockManager) DelCache(key string) error {
+func (b *BlockManager) DelCache(key string) error {
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 	_, err := rc.Do("DEL", key)

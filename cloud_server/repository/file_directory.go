@@ -11,33 +11,33 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
-type IDir interface {
-	GetByFid(int64) ([]models.FileDirectory, error)
-	Set([]models.FileDirectory) error
-	Update(models.FileDirectory) error
-	DeleteById(int64) error
-
-	GetSqlMaxId() (int64, error)
-	GetSqlByFid(int64) ([]models.FileDirectory, error)
-	GetSqlById(int64) (models.FileDirectory, error)
-	SetSql([]models.FileDirectory) error
-	UpdateSql(models.FileDirectory) error
-	DelSqlById(int64) error
-
-	GetCache(string) ([]models.FileDirectory, error)
-	SetCache(string, []models.FileDirectory) error
-	DelCache(string) error
-}
+//type IDir interface {
+//	GetByFid(int64) ([]models.FileDirectory, error)
+//	Set([]models.FileDirectory) error
+//	Update(models.FileDirectory) error
+//	DeleteById(int64) error
+//
+//	GetSqlMaxId() (int64, error)
+//	GetSqlByFid(int64) ([]models.FileDirectory, error)
+//	GetSqlById(int64) (models.FileDirectory, error)
+//	SetSql([]models.FileDirectory) error
+//	UpdateSql(models.FileDirectory) error
+//	DelSqlById(int64) error
+//
+//	GetCache(string) ([]models.FileDirectory, error)
+//	SetCache(string, []models.FileDirectory) error
+//	DelCache(string) error
+//}
 
 type DirManager struct {
 	table string
 }
 
-func NewDirManager() IDir {
+func NewDirManager() *DirManager {
 	return &DirManager{table: "file_directory"}
 }
 
-func (d DirManager) GetByFid(fid int64) ([]models.FileDirectory, error) {
+func (d *DirManager) GetByFid(fid int64) ([]models.FileDirectory, error) {
 	fidStr := strconv.FormatInt(fid, 64)
 
 	dirList, err := d.GetCache("dirFid_" + fidStr)
@@ -50,7 +50,7 @@ func (d DirManager) GetByFid(fid int64) ([]models.FileDirectory, error) {
 	return dirList, err
 }
 
-func (d DirManager) Set(dirList []models.FileDirectory) error {
+func (d *DirManager) Set(dirList []models.FileDirectory) error {
 	err := d.SetSql(dirList)
 	if err == nil {
 		dirList, err = d.GetSqlByFid(dirList[0].Fid)
@@ -63,7 +63,7 @@ func (d DirManager) Set(dirList []models.FileDirectory) error {
 	return err
 }
 
-func (d DirManager) Update(dirMate models.FileDirectory) error {
+func (d *DirManager) Update(dirMate models.FileDirectory) error {
 	err := d.UpdateSql(dirMate)
 	if err != nil {
 		return err
@@ -76,7 +76,7 @@ func (d DirManager) Update(dirMate models.FileDirectory) error {
 	return err
 }
 
-func (d DirManager) DeleteById(id int64) error {
+func (d *DirManager) DeleteById(id int64) error {
 	err := d.DelSqlById(id)
 	if err != nil {
 		return err
@@ -95,7 +95,7 @@ func (d DirManager) DeleteById(id int64) error {
 	return err
 }
 
-func (d DirManager) GetSqlMaxId() (int64, error) {
+func (d *DirManager) GetSqlMaxId() (int64, error) {
 	var res int64
 
 	getSql := `
@@ -107,7 +107,7 @@ func (d DirManager) GetSqlMaxId() (int64, error) {
 	return res, err
 }
 
-func (d DirManager) GetSqlByFid(fid int64) ([]models.FileDirectory, error) {
+func (d *DirManager) GetSqlByFid(fid int64) ([]models.FileDirectory, error) {
 	var dirList []models.FileDirectory
 
 	getSql := `
@@ -136,7 +136,7 @@ func (d DirManager) GetSqlByFid(fid int64) ([]models.FileDirectory, error) {
 	for rows.Next() {
 		var dirMate models.FileDirectory
 		_ = rows.Scan(
-			&dirMate.Id, &dirMate.IsDir, &dirMate.DirName,
+			&dirMate.Id, &dirMate.IsFolder, &dirMate.DirName,
 			&dirMate.Fid, &dirMate.Recycled, &dirMate.UserFileMap.Id,
 			&dirMate.UserFileMap.FileName, &dirMate.UserFileMap.Star,
 			&dirMate.UserFileMap.IsPublic, &dirMate.UserFileMap.State,
@@ -164,7 +164,7 @@ func (d DirManager) GetSqlByFid(fid int64) ([]models.FileDirectory, error) {
 	return dirList, err
 }
 
-func (d DirManager) GetSqlById(id int64) (models.FileDirectory, error) {
+func (d *DirManager) GetSqlById(id int64) (models.FileDirectory, error) {
 	var dirMate models.FileDirectory
 
 	getSql := `
@@ -187,7 +187,7 @@ func (d DirManager) GetSqlById(id int64) (models.FileDirectory, error) {
 	`
 	rows := utils.Conn.QueryRow(getSql, id)
 	err := rows.Scan(
-		&dirMate.Id, &dirMate.IsDir, &dirMate.DirName,
+		&dirMate.Id, &dirMate.IsFolder, &dirMate.DirName,
 		&dirMate.Fid, &dirMate.Recycled, &dirMate.UserFileMap.Id,
 		&dirMate.UserFileMap.FileName, &dirMate.UserFileMap.Star,
 		&dirMate.UserFileMap.IsPublic, &dirMate.UserFileMap.State,
@@ -213,7 +213,7 @@ func (d DirManager) GetSqlById(id int64) (models.FileDirectory, error) {
 	return dirMate, err
 }
 
-func (d DirManager) SetSql(dirList []models.FileDirectory) error {
+func (d *DirManager) SetSql(dirList []models.FileDirectory) error {
 	var setlist []interface{}
 
 	insertSql := `
@@ -228,7 +228,7 @@ func (d DirManager) SetSql(dirList []models.FileDirectory) error {
 		insertList = append(insertList, "(?,?,?,?,?)")
 		setlist = append(setlist, dirMate.Id)
 		setlist = append(setlist, dirMate.UserFileMap.Id)
-		setlist = append(setlist, dirMate.IsDir)
+		setlist = append(setlist, dirMate.IsFolder)
 		setlist = append(setlist, dirMate.DirName)
 		setlist = append(setlist, dirMate.Fid)
 	}
@@ -238,7 +238,7 @@ func (d DirManager) SetSql(dirList []models.FileDirectory) error {
 	return err
 }
 
-func (d DirManager) UpdateSql(dirMate models.FileDirectory) error {
+func (d *DirManager) UpdateSql(dirMate models.FileDirectory) error {
 	updateSql := `
 		UPDATE file_directory 
 		SET fd_uf_id=?, fd_is_dir=?, fd_dir_name=?,
@@ -247,13 +247,13 @@ func (d DirManager) UpdateSql(dirMate models.FileDirectory) error {
 	`
 	_, err := utils.Conn.Exec(
 		updateSql,
-		dirMate.UserFileMap.Id, dirMate.IsDir, dirMate.DirName,
+		dirMate.UserFileMap.Id, dirMate.IsFolder, dirMate.DirName,
 		dirMate.Fid, dirMate.Recycled, dirMate.Id,
 	)
 	return err
 }
 
-func (d DirManager) DelSqlById(id int64) error {
+func (d *DirManager) DelSqlById(id int64) error {
 	updateSql := `
 		UPDATE file_directory 
 		SET fd_recycled = 'Y'
@@ -263,7 +263,7 @@ func (d DirManager) DelSqlById(id int64) error {
 	return err
 }
 
-func (d DirManager) GetCache(key string) ([]models.FileDirectory, error) {
+func (d *DirManager) GetCache(key string) ([]models.FileDirectory, error) {
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 
@@ -275,7 +275,7 @@ func (d DirManager) GetCache(key string) ([]models.FileDirectory, error) {
 	return dirList, err
 }
 
-func (d DirManager) SetCache(key string, dirList []models.FileDirectory) error {
+func (d *DirManager) SetCache(key string, dirList []models.FileDirectory) error {
 	jsonData, err := json.Marshal(dirList)
 
 	rc := utils.RedisPool.Get()
@@ -285,7 +285,7 @@ func (d DirManager) SetCache(key string, dirList []models.FileDirectory) error {
 	return err
 }
 
-func (d DirManager) DelCache(key string) error {
+func (d *DirManager) DelCache(key string) error {
 	rc := utils.RedisPool.Get()
 	defer rc.Close()
 	_, err := rc.Do("DEL", key)

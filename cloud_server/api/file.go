@@ -262,7 +262,7 @@ func UploadShow(g *gin.Context) {
 		errCheck(g, err, "UploadShow:Failed to read file_block_info", http.StatusInternalServerError)
 	}
 
-	var hashDict map[string]models.FileBlockInfo
+	hashDict := make(map[string]models.FileBlockInfo)
 	for _, fileBlockMate := range fileBlockList {
 		hashDict[fileBlockMate.Hash] = fileBlockMate
 	}

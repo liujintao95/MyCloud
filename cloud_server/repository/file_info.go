@@ -9,27 +9,27 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
-type IFile interface {
-	GetByHash(string) (models.FileInfo, error)
-	Set(models.FileInfo) (int64, error)
-	Update(models.FileInfo) error
-	DeleteByHash(string) error
-
-	GetSqlByHash(string) (models.FileInfo, error)
-	SetSql(models.FileInfo) (int64, error)
-	UpdateSql(models.FileInfo) error
-	DelSqlByHash(string) error
-
-	GetCache(string) (models.FileInfo, error)
-	SetCache(string, models.FileInfo) error
-	DelCache(string) error
-}
+//type IFile interface {
+//	GetByHash(string) (models.FileInfo, error)
+//	Set(models.FileInfo) (int64, error)
+//	Update(models.FileInfo) error
+//	DeleteByHash(string) error
+//
+//	GetSqlByHash(string) (models.FileInfo, error)
+//	SetSql(models.FileInfo) (int64, error)
+//	UpdateSql(models.FileInfo) error
+//	DelSqlByHash(string) error
+//
+//	GetCache(string) (models.FileInfo, error)
+//	SetCache(string, models.FileInfo) error
+//	DelCache(string) error
+//}
 
 type FileManager struct {
 	table string
 }
 
-func NewFileManager() IFile {
+func NewFileManager() *FileManager {
 	return &FileManager{table: "file_info"}
 }
 
